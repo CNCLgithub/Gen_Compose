@@ -2,3 +2,6 @@ name = "Gen_Compose"
 uuid = "c1ef4dca-b0a6-4a35-b24b-46cbf3979a16"
 authors = ["mario "]
 version = "0.1.0"
+
+[deps]
+Gen = "ea4f424c-a589-11e8-07c0-fd5c91b9da4a"

@@ -2,7 +2,7 @@
 """
 Only active latents are tracked
 """
-@gen function prior(q::FactorizedQuery{C,O}) => C
+@gen function prior(q::FactorizedQuery{L,C,O} where {L, C, O})
     new_context = copy(q.context)
     for (latent, dist, active) in zip(q.latents, q.distributions,
                               q.active)

@@ -1,28 +1,25 @@
-
 struct ParticleFilter <: InferenceProcedure
-    particles:<Int
-    ess:<Float
-    rejuvination::RejuvinationMove
+    particles::U where U<:Int
+    ess::Float64
+    rejuvination::T where T<:Function
 end
 
-
-
-"""
-Perturb each latent sequentially
-using `trunc_norm_perturb`
-"""
-function gen_gibbs_trunc_norm(latents<:AbstractVector{Gen.Selection},
-                              rv_params<:AbstractVector{Gen.Distribution{Any}})
-    n_latents = length(latents)
-    blocks = mh_rejuvenate(repeat([trunc_norm_perturb], n_latents))
-    return trace -> blocks(trace, zip(latents, rv_params))
-end;
+# """
+# Perturb each latent sequentially
+# using `trunc_norm_perturb`
+# """
+# function gen_gibbs_trunc_norm(latents<:AbstractVector{Gen.Selection},
+#                               rv_params<:AbstractVector{Gen.Distribution{Any}})
+#     n_latents = length(latents)
+#     blocks = mh_rejuvenate(repeat([trunc_norm_perturb], n_latents))
+#     return trace -> blocks(trace, zip(latents, rv_params))
+# end;
 
 """
 
 Helper that
 """
-function refine_and_resample!(proc::PartcileFilter,
+function refine_and_resample!(proc::ParticleFilter,
                              state)
     # add rejuvination
     for p=1:params.n_particles
@@ -34,7 +31,7 @@ function refine_and_resample!(proc::PartcileFilter,
 end
 
 function initialize_procedure(proc::ParticleFilter,
-                              query::Query{L,C,O})
+                              query::Query{L,C,O} where {L,C,O})
     state = Gen.initialize_particle_filter(sample,
                                            (query,),
                                            proc.particles)
@@ -42,7 +39,7 @@ function initialize_procedure(proc::ParticleFilter,
 end
 
 function step_procedure!(proc::ParticleFilter,
-                        query::Query{L,C,O},
+                        query::Query{L,C,O} where {L,C,O},
                         state)
     # update the state of the particles with the new observation
     Gen.particle_filter_step!(state,
@@ -51,3 +48,5 @@ function step_procedure!(proc::ParticleFilter,
                               cur_obs)
     state = refine_and_resample!(proc, state)
 end
+
+export ParticleFilter
