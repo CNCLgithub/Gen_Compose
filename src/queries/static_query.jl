@@ -44,7 +44,7 @@ where addresses, `Query.latents` are drawn
 """
 
 @gen function prior(q::StaticQuery{L,C,O} where {L,C,O})
-    new_context = copy(q.context)
+    new_context = deepcopy(q.context)
     for (latent, dist) in zip(q.latents, q.distributions)
         new_value = @trace(random(dist, tuple()), latent)
         update_context!(new_context, latent, new_value)
@@ -81,7 +81,7 @@ Samples a `c::Context{C}` from the prior and scores the likelihood.
     likelihood(q, c, addr)
 end
 
-function initialize_results(q::StaticQuery) = (length(q.latents),)
+initialize_results(q::StaticQuery) = (length(q.latents),)
 
 export StaticQuery
     prior

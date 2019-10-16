@@ -1,7 +1,7 @@
 
 "Computes a posterior query"
 abstract type InferenceProcedure end
-abstract type InferenceParameters{T} end
+abstract type InferenceResult end
 
 """
     state = initialize_procedure(proc::InferenceProcedure,
@@ -23,5 +23,8 @@ function report_step! end
 export InferenceProcedure
 export initialize_procedure
 export step_procedure
+export initialize_results
+export report_step!
 
 include("particle_filter.jl")
+include("mc.jl")

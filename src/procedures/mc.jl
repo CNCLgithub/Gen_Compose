@@ -1,20 +1,21 @@
 
-mutable struct StaticTraceResult{L} <: InferenceResult
+mutable struct StaticTraceResult <: InferenceResult
     latents::AbstractVector{Symbol}
-    estimates::E where E<:AbstractArray{L}
+    estimates::E where E<:AbstractArray{Float64}
     log_score::Vector{Float64}
-    StaticTraceResult{L}(latents, dims) = new(latents,
-                                              new Array{L}(undef,dims...),
-                                              new Vector{Float64}(undef, dims[1]))
+    StaticTraceResult(latents, dims) = new(latents,
+                                           Array{Float64}(undef,dims...),
+                                           Vector{Float64}(undef, dims[1]))
 end
 
 function initialize_results(proc::InferenceProcedure,
                             query::StaticQuery,
                             iterations::Int)
     inner = initialize_results(query)
-    outer = initialize_results(proc, inner)
+    outer = initialize_results(proc)
     dims = (iterations, outer..., inner...)
-    return new StaticTraceResult{Float64}(query.latents, dims)
+    return StaticTraceResult(query.latents, dims)
+end
 
 function static_monte_carlo(procedure::InferenceProcedure,
                             query::StaticQuery,
@@ -26,18 +27,15 @@ function static_monte_carlo(procedure::InferenceProcedure,
     let
         state = Nothing;
     end
-    for it in range(iterations)
+    for it in range(1, length=iterations)
         addr = :iter => it
-        cur_obs = choicemap()
-        set_submap!(cur_obs, addr, query.observations)
         if it == 1
-            state = intialize_procedure(procedure, query, addr)
+            state = initialize_procedure(procedure, query, addr)
         else
             step_procedure!(state, procedure, query, addr)
         end
 
         # Report step
-        @printf "Iteration %d" it
         report_step!(results, state, query.latents, it)
     end
     return results

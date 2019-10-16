@@ -64,7 +64,7 @@ procedure = ParticleFilter(n_particles,
                            ess,
                            rejuv)
 
+iterations = 100
+results = static_monte_carlo(procedure, query, iterations)
 
-results = static_monte_carlo(procedure, query)
-
-summarize(results)
+# summarize(results)

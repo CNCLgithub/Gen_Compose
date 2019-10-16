@@ -12,9 +12,9 @@ end
 Helper that
 """
 function refine_and_resample!(proc::ParticleFilter,
-                              state)
+                              state::Gen.ParticleFilterState)
     # add rejuvination
-    for p=1:params.n_particles
+    for p=1:proc.particles
         state.traces[p] = proc.rejuvination(state.traces[p])
     end
     # Resample depending on ess
@@ -24,33 +24,36 @@ end
 
 function initialize_procedure(proc::ParticleFilter,
                               query::Query{L,C,O} where {L,C,O},
-                              addr::Symbol)
+                              addr)
+    obs = choicemap()
+    set_submap!(obs, addr, query.observations)
     state = Gen.initialize_particle_filter(sample,
                                            (query, addr),
+                                           obs,
                                            proc.particles)
-    state = refine_and_resample(proc, state)
+    state = refine_and_resample!(proc, state)
 end
 
 function step_procedure!(state,
                          proc::ParticleFilter,
                          query::Query{L,C,O} where {L,C,O},
-                         addr::Symbol)
+                         addr)
+    obs = choicemap()
+    set_submap!(obs, addr, query.observations)
     # update the state of the particles with the new observation
     Gen.particle_filter_step!(state,
                               (query, addr),
                               (UnknownChange(),),
-                              cur_obs)
+                              obs)
     refine_and_resample!(proc, state)
     return nothing
 end
 
-function initiliaze_results(proc::ParticleFilter)
-    return (proc.particles,)
-end
+initialize_results(proc::ParticleFilter) = (proc.particles,)
 
-function report_step!(results::T where T<:InferenceResults,
-                      state::ParticleFilterState,
-                      latents::Vector{Symbol}
+function report_step!(results::T where T<:InferenceResult,
+                      state::Gen.ParticleFilterState,
+                      latents::Vector{Symbol},
                       idx::Int)
     # copy log scores
     results.log_score[idx, :] = Gen.get_log_weights(state)
@@ -66,3 +69,5 @@ end
 
 
 export ParticleFilter
+
+
