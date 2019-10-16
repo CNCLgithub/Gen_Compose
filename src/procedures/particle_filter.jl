@@ -4,49 +4,65 @@ struct ParticleFilter <: InferenceProcedure
     rejuvination::T where T<:Function
 end
 
-# """
-# Perturb each latent sequentially
-# using `trunc_norm_perturb`
-# """
-# function gen_gibbs_trunc_norm(latents<:AbstractVector{Gen.Selection},
-#                               rv_params<:AbstractVector{Gen.Distribution{Any}})
-#     n_latents = length(latents)
-#     blocks = mh_rejuvenate(repeat([trunc_norm_perturb], n_latents))
-#     return trace -> blocks(trace, zip(latents, rv_params))
-# end;
+
+# function _create_result()
 
 """
 
 Helper that
 """
 function refine_and_resample!(proc::ParticleFilter,
-                             state)
+                              state)
     # add rejuvination
     for p=1:params.n_particles
         state.traces[p] = proc.rejuvination(state.traces[p])
     end
     # Resample depending on ess
     Gen.maybe_resample!(state, ess_threshold=proc.ess)
-    return state
+    return nothing
 end
 
 function initialize_procedure(proc::ParticleFilter,
-                              query::Query{L,C,O} where {L,C,O})
+                              query::Query{L,C,O} where {L,C,O},
+                              addr::Symbol)
     state = Gen.initialize_particle_filter(sample,
-                                           (query,),
+                                           (query, addr),
                                            proc.particles)
     state = refine_and_resample(proc, state)
 end
 
-function step_procedure!(proc::ParticleFilter,
-                        query::Query{L,C,O} where {L,C,O},
-                        state)
+function step_procedure!(state,
+                         proc::ParticleFilter,
+                         query::Query{L,C,O} where {L,C,O},
+                         addr::Symbol)
     # update the state of the particles with the new observation
     Gen.particle_filter_step!(state,
-                              (query,),
+                              (query, addr),
                               (UnknownChange(),),
                               cur_obs)
-    state = refine_and_resample!(proc, state)
+    refine_and_resample!(proc, state)
+    return nothing
 end
+
+function initiliaze_results(proc::ParticleFilter)
+    return (proc.particles,)
+end
+
+function report_step!(results::T where T<:InferenceResults,
+                      state::ParticleFilterState,
+                      latents::Vector{Symbol}
+                      idx::Int)
+    # copy log scores
+    results.log_score[idx, :] = Gen.get_log_weights(state)
+    # retrieve estimates
+    traces = Gen.get_traces(state)
+    for t in traces
+        choices = Gen.get_choices(state.traces[t])
+        for l = 1:length(latents)
+            results.estimates[idx, t, l] = choices[latents[l]]
+        end
+    end
+end
+
 
 export ParticleFilter

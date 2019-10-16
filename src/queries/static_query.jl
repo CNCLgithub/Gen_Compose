@@ -61,8 +61,10 @@ Computes P(O|H)
 Given a context sampled from the prior over `q`, run the forward model on `c`
 and compute the score of P(O,H).
 """
-@gen function likelihood(q::StaticQuery{L,C,O} where {L,C,O}, context)
-    @trace(q.forward_function(context), :obs)
+@gen function likelihood(q::StaticQuery{L,C,O} where {L,C,O},
+                         context,
+                         addr::Symbol)
+    @trace(q.forward_function(context), addr)
 end
 
 
@@ -73,12 +75,16 @@ Computes P(H|O)
 
 Samples a `c::Context{C}` from the prior and scores the likelihood.
 """
-@gen function sample(q::StaticQuery{L,C,O} where {L,C,O})
+@gen function sample(q::StaticQuery{L,C,O} where {L,C,O},
+                     addr::Symbol)
     c = prior(q)
-    likelihood(q, c)
+    likelihood(q, c, addr)
 end
 
+function initialize_results(q::StaticQuery) = (length(q.latents),)
+
 export StaticQuery
-export prior
-export likelihood
-export sample
+    prior
+    likelihood
+    sample
+    initialize_results
