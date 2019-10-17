@@ -34,8 +34,8 @@ ys = noisy_line_model(gt)
 
 # define the prior over the set of latents
 latents = map(first, collect(get_submaps_shallow(gt)))
-prior = [ LazyDistribution{Float64}(uniform,  _ -> (-4, 4))
-          LazyDistribution{Float64}(uniform,  _ -> (-20, 20))]
+prior = [LazyDistribution{Float64}(uniform,  _ -> (-4, 4))
+         LazyDistribution{Float64}(uniform,  _ -> (-20, 20))]
 
 
 query = Gen_Compose.StaticQuery{Float64, Gen.ChoiceMap, Vector{Float64}}(
@@ -55,10 +55,11 @@ query = Gen_Compose.StaticQuery{Float64, Gen.ChoiceMap, Vector{Float64}}(
 n_particles = 10
 ess = n_particles * 0.5
 # defines the random variables used in rejuvination
-moves = [ LazyDistribution{Float64}(uniform, x -> (x-0.05, x+0.05))
-          LazyDistribution{Float64}(uniform, x -> (x-0.1, x+0.1))]
+moves = [LazyDistribution{Float64}(uniform, x -> (x-0.05, x+0.05))
+         LazyDistribution{Float64}(uniform, x -> (x-0.1, x+0.1))]
+
 # the rejuvination will follow Gibbs sampling
-rejuv = gibbs_steps(moves)
+rejuv = gibbs_steps(moves, latents)
 
 procedure = ParticleFilter(n_particles,
                            ess,

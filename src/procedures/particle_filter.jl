@@ -31,7 +31,8 @@ function initialize_procedure(proc::ParticleFilter,
                                            (query, addr),
                                            obs,
                                            proc.particles)
-    state = refine_and_resample!(proc, state)
+    refine_and_resample!(proc, state)
+    return state
 end
 
 function step_procedure!(state,
@@ -53,7 +54,7 @@ initialize_results(proc::ParticleFilter) = (proc.particles,)
 
 function report_step!(results::T where T<:InferenceResult,
                       state::Gen.ParticleFilterState,
-                      latents::Vector{Symbol},
+                      latents::Vector{Gen.Selection},
                       idx::Int)
     # copy log scores
     results.log_score[idx, :] = Gen.get_log_weights(state)
