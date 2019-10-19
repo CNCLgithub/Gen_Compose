@@ -27,8 +27,12 @@ function initialize_procedure(proc::ParticleFilter,
                               addr)
     obs = choicemap()
     set_submap!(obs, addr, query.observations)
-    state = Gen.initialize_particle_filter(sample,
-                                           (query, addr),
+    # state = Gen.initialize_particle_filter(sample,
+    #                                        (query, addr),
+    #                                        obs,
+    #                                        proc.particles)
+    state = Gen.initialize_particle_filter(query.forward_function,
+                                           (addr,),
                                            obs,
                                            proc.particles)
     refine_and_resample!(proc, state)
@@ -57,6 +61,8 @@ function report_step!(results::T where T<:InferenceResult,
                       latents::Vector{Gen.Selection},
                       idx::Int)
     # copy log scores
+    println(size(Gen.get_log_weights(state)))
+    println(size(results.log_score))
     results.log_score[idx, :] = Gen.get_log_weights(state)
     # retrieve estimates
     traces = Gen.get_traces(state)

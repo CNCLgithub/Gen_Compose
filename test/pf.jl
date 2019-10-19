@@ -6,17 +6,15 @@ using Gen_Compose
 #
 # The posterior to compute is P(m,b | ys)
 
-xs = range(1, stop=20)
+xs = Vector{Float64}(1:20)
 
-function line_model(m,b,x)
-    m*x + b
-end
-
-# The forward model + noise
-@gen function noisy_line_model(c::T where T<:Gen.ChoiceMap)
+# The forward model
+@gen function noisy_line_model(prior::DeferredPrior)
     ys = Vector{Float64}(undef, length(xs))
+    m = @trace(draw(prior, :m))
+    b = @trace(draw(prior, :b))
     for x in xs
-        y = line_model(c[:m], c[:b], x)
+        y = m*x + b
         # add noise ~ N(^y, 0.1)
         ys[x] = @trace(normal(y, 0.1), x => :y)
     end
@@ -27,21 +25,24 @@ end
 # The ground truth latents
 gt = choicemap()
 gt[:m] = 2.5
-gt[:b] = 10
+gt[:b] = 10.0
 
 # Observations
-ys = noisy_line_model(gt)
+# ys = noisy_line_model(gt)
+ys = 2.5*xs + fill(10.0, length(xs))
 
 # define the prior over the set of latents
-latents = map(first, collect(get_submaps_shallow(gt)))
-prior = [LazyDistribution{Float64}(uniform,  _ -> (-4, 4))
-         LazyDistribution{Float64}(uniform,  _ -> (-20, 20))]
+latents = map(first, collect(Gen.get_values_shallow(gt)))
+prior = DeferredPrior(latents,
+                      [StaticDistribution{Float64}(uniform, (-4, 4))
+                       StaticDistribution{Float64}(uniform, (-20, 20))])
+# prior = [LazyDistribution{Float64}(uniform,  _ -> (-4, 4))
+#          LazyDistribution{Float64}(uniform,  _ -> (-20, 20))]
 
 
 query = Gen_Compose.StaticQuery{Float64, Gen.ChoiceMap, Vector{Float64}}(
     latents,
     prior,
-    gt,
     noisy_line_model,
     ys)
 
@@ -55,8 +56,8 @@ query = Gen_Compose.StaticQuery{Float64, Gen.ChoiceMap, Vector{Float64}}(
 n_particles = 10
 ess = n_particles * 0.5
 # defines the random variables used in rejuvination
-moves = [LazyDistribution{Float64}(uniform, x -> (x-0.05, x+0.05))
-         LazyDistribution{Float64}(uniform, x -> (x-0.1, x+0.1))]
+moves = [DynamicDistribution{Float64}(uniform, x -> (x-0.05, x+0.05))
+         DynamicDistribution{Float64}(uniform, x -> (x-0.1, x+0.1))]
 
 # the rejuvination will follow Gibbs sampling
 rejuv = gibbs_steps(moves, latents)

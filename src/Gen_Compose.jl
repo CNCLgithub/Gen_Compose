@@ -5,7 +5,7 @@ module Gen_Compose
 using Gen
 
 # Random Variables
-include("random_variables/lazy_rv.jl")
+include("random_variables/random_variables.jl")
 
 # Queries
 include("queries/inference_query.jl")
