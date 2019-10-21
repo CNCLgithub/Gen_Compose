@@ -2,10 +2,10 @@
 mutable struct StaticTraceResult <: InferenceResult
     latents::T where T<:AbstractVector
     estimates::E where E<:AbstractArray{Float64}
-    log_score::Vector{Float64}
+    log_score::Array{Float64,2}
     StaticTraceResult(latents, dims) = new(latents,
-                                           Array{Float64}(undef,dims...),
-                                           Vector{Float64}(undef, dims[:2]...))
+                                           Array{Float64}(undef, dims...),
+                                           Array{Float64}(undef, dims[1:2]...))
 end
 
 function initialize_results(proc::InferenceProcedure,
@@ -26,20 +26,17 @@ function static_monte_carlo(procedure::InferenceProcedure,
     # Begin inference procedure
     let
         state = Nothing;
-    end
-    # addr = :iter => 1
-    # state = initialize_procedure(procedure, query, addr)
-    # report_step!(results, state, query.latents, 1)
-    for it in 1:iterations
-        addr = :iter => it
-        if it == 1
-            state = initialize_procedure(procedure, query, addr)
-        else
-            step_procedure!(state, procedure, query, addr)
+        for it in 1:iterations
+            # addr = (:iter,it)
+            addr = :iter => it
+            if it == 1
+                state = initialize_procedure(procedure, query, addr)
+            else
+                step_procedure!(state, procedure, query, addr)
+            end
+            # Report step
+            report_step!(results, state, query.latents, it)
         end
-        # step_procedure!(state, procedure, query, addr)
-        # Report step
-        report_step!(results, state, query.latents, it)
     end
     return results
 end

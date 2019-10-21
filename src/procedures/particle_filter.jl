@@ -5,7 +5,16 @@ struct ParticleFilter <: InferenceProcedure
 end
 
 
-# function _create_result()
+# function Base.getindex(selection::DynamicSelection, addr::Pair)
+#     (first, rest) = addr
+#     if haskey(selection.subselections, first)
+#         subselection = selection.subselections[first]
+#         @assert !isempty(subselection)
+#         getindex(subselection, rest)
+#     else
+#         EmptySelection()
+#     end
+# end
 
 """
 
@@ -23,31 +32,28 @@ function refine_and_resample!(proc::ParticleFilter,
 end
 
 function initialize_procedure(proc::ParticleFilter,
-                              query::Query{L,C,O} where {L,C,O},
+                              query::StaticQuery,
                               addr)
     obs = choicemap()
-    set_submap!(obs, addr, query.observations)
-    # state = Gen.initialize_particle_filter(sample,
-    #                                        (query, addr),
-    #                                        obs,
-    #                                        proc.particles)
+    set_value!(obs, addr, get_value(query.observations, :obs))
     state = Gen.initialize_particle_filter(query.forward_function,
-                                           (addr,),
+                                           (query.prior, addr),
                                            obs,
                                            proc.particles)
     refine_and_resample!(proc, state)
     return state
 end
 
+
 function step_procedure!(state,
                          proc::ParticleFilter,
-                         query::Query{L,C,O} where {L,C,O},
+                         query::StaticQuery,
                          addr)
     obs = choicemap()
-    set_submap!(obs, addr, query.observations)
+    set_value!(obs, addr, get_value(query.observations, :obs))
     # update the state of the particles with the new observation
     Gen.particle_filter_step!(state,
-                              (query, addr),
+                              (query.prior, addr),
                               (UnknownChange(),),
                               obs)
     refine_and_resample!(proc, state)
@@ -58,20 +64,19 @@ initialize_results(proc::ParticleFilter) = (proc.particles,)
 
 function report_step!(results::T where T<:InferenceResult,
                       state::Gen.ParticleFilterState,
-                      latents::Vector{Gen.Selection},
+                      latents::Vector,
                       idx::Int)
     # copy log scores
-    println(size(Gen.get_log_weights(state)))
-    println(size(results.log_score))
     results.log_score[idx, :] = Gen.get_log_weights(state)
     # retrieve estimates
     traces = Gen.get_traces(state)
-    for t in traces
-        choices = Gen.get_choices(state.traces[t])
+    for (t_i,trace) in enumerate(traces)
+        choices = Gen.get_choices(trace)
         for l = 1:length(latents)
-            results.estimates[idx, t, l] = choices[latents[l]]
+            results.estimates[idx, t_i, l] = choices[latents[l]]
         end
     end
+    return nothing
 end
 
 

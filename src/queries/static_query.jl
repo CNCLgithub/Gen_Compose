@@ -12,7 +12,7 @@ end
 
 Defines a singule target distribution
 """
-struct StaticQuery{L,C,O} <: Query{L,C,O}
+struct StaticQuery <: Query
     # A list of selections describing the latents to infer
     latents::AbstractVector{T} where {T}
     # latents::T where T<:Gen.Selection
@@ -21,7 +21,7 @@ struct StaticQuery{L,C,O} <: Query{L,C,O}
     # The forward function
     forward_function #::Gen.GenerativeFunction{O, U} where U<:Gen.Trace
     # A numerical structure that contains the observation(s)
-    observations::O
+    observations::C where C<:Gen.ChoiceMap
 end;
 
 # struct SequentialQuery{L,C,O} <: Query{L,C,O}

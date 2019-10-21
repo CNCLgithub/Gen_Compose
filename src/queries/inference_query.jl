@@ -1,6 +1,6 @@
 
 "The posterior to compute: Pr(H | O)"
-abstract type Query{L,C,O} end
+abstract type Query end
 
 
 # """
