@@ -61,23 +61,9 @@ query = Gen_Compose.StaticQuery(latents,
 
 # -----------------------------------------------------------
 # Define the inference procedure
-# In this case we will be using a particle filter
-#
-# Additionally, this will be under the Sequential Monte-Carlo
-# paradigm.
+# In this case we will be using a MH
 
-n_particles = 1.
-ess = n_particles * 0.5
-# defines the random variables used in rejuvination
-moves = [DynamicDistribution{Float64}(uniform, x -> (x-0.05, x+0.05))
-         DynamicDistribution{Float64}(uniform, x -> (x-0.1, x+0.1))]
-
-# the rejuvination will follow Gibbs sampling
-rejuv = gibbs_steps(moves, latents)
-
-procedure = ParticleFilter(n_particles,
-                           ess,
-                           rejuv)
+procedure = MetropolisHastings()
 
 iterations = 100
 results = static_monte_carlo(procedure, query, iterations)

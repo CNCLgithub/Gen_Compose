@@ -4,18 +4,6 @@ struct ParticleFilter <: InferenceProcedure
     rejuvination::T where T<:Function
 end
 
-
-# function Base.getindex(selection::DynamicSelection, addr::Pair)
-#     (first, rest) = addr
-#     if haskey(selection.subselections, first)
-#         subselection = selection.subselections[first]
-#         @assert !isempty(subselection)
-#         getindex(subselection, rest)
-#     else
-#         EmptySelection()
-#     end
-# end
-
 """
 
 Helper that
@@ -37,7 +25,7 @@ function initialize_procedure(proc::ParticleFilter,
     obs = choicemap()
     set_value!(obs, addr, get_value(query.observations, :obs))
     state = Gen.initialize_particle_filter(query.forward_function,
-                                           (query.prior, addr),
+                                           (query.prior, query.args..., addr),
                                            obs,
                                            proc.particles)
     refine_and_resample!(proc, state)
@@ -53,7 +41,7 @@ function step_procedure!(state,
     set_value!(obs, addr, get_value(query.observations, :obs))
     # update the state of the particles with the new observation
     Gen.particle_filter_step!(state,
-                              (query.prior, addr),
+                              (query.prior, query.args..., addr),
                               (UnknownChange(),),
                               obs)
     refine_and_resample!(proc, state)

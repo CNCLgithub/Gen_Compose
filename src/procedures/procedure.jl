@@ -27,4 +27,6 @@ export initialize_results
 export report_step!
 
 include("particle_filter.jl")
+include("mh.jl")
 include("mc.jl")
+

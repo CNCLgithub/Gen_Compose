@@ -27,7 +27,6 @@ function static_monte_carlo(procedure::InferenceProcedure,
     let
         state = Nothing;
         for it in 1:iterations
-            # addr = (:iter,it)
             addr = :iter => it
             if it == 1
                 state = initialize_procedure(procedure, query, addr)
