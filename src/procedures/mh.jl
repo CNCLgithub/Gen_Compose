@@ -3,7 +3,7 @@ struct MetropolisHastings <: InferenceProcedure end
 function initialize_procedure(proc::MetropolisHastings,
                               query::StaticQuery,
                               addr)
-    addr = :obs
+    addr = observation_address(query)
     trace,_ = Gen.generate(query.forward_function,
                            (query.prior, query.args..., addr),
                            query.observations)

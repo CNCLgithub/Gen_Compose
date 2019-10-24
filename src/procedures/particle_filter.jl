@@ -22,8 +22,9 @@ end
 function initialize_procedure(proc::ParticleFilter,
                               query::StaticQuery,
                               addr)
+    sub_addr = observation_address(query)
     obs = choicemap()
-    set_value!(obs, addr, get_value(query.observations, :obs))
+    set_value!(obs, addr, get_value(query.observations, sub_addr))
     state = Gen.initialize_particle_filter(query.forward_function,
                                            (query.prior, query.args..., addr),
                                            obs,
@@ -37,8 +38,9 @@ function step_procedure!(state,
                          proc::ParticleFilter,
                          query::StaticQuery,
                          addr)
+    sub_addr = observation_address(query)
     obs = choicemap()
-    set_value!(obs, addr, get_value(query.observations, :obs))
+    set_value!(obs, addr, get_value(query.observations, sub_addr))
     # update the state of the particles with the new observation
     Gen.particle_filter_step!(state,
                               (query.prior, query.args..., addr),

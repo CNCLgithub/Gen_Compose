@@ -2,7 +2,17 @@ import Gen.sample
 
 export StaticQuery,
     sample,
-    initialize_results
+    initialize_results,
+    observation_address
+
+function create_obs_choicemap(c::T where T<:Gen.ChoiceMap)
+    sc = Gen.StaticChoiceMap(c)
+    values = Gen.get_values_shallow(sc)
+    if length(values) != 1
+        error("Observation must have one shallow address")
+    end
+    return sc
+end
 
 """
 
@@ -19,6 +29,8 @@ struct StaticQuery <: Query
     args::T where T<:Tuple
     # A numerical structure that contains the observation(s)
     observations::C where C<:Gen.ChoiceMap
+    StaticQuery(latents, prior, forward_function, args, obs) =
+        new(latents, prior, forward_function, args, create_obs_choicemap(obs))
 end;
 
 
@@ -37,3 +49,7 @@ end
 
 initialize_results(q::StaticQuery) = length(q.latents)
 
+function observation_address(q::StaticQuery)
+    (addr, _) = first(Gen.get_values_shallow(q.observations))
+    return addr
+end
