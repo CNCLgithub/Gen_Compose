@@ -1,7 +1,4 @@
-import Gen.sample
-
 export StaticQuery,
-    sample,
     initialize_results,
     observation_address
 
@@ -34,18 +31,18 @@ struct StaticQuery <: Query
 end;
 
 
-"""
-   sample(q::InferenceQuery{L,C,O})
+# """
+#    sample(q::InferenceQuery{L,C,O})
 
-Computes P(H|O)
+# Computes P(H|O)
 
-Samples a `c::Context{C}` from the prior and scores the likelihood.
-"""
-@gen function sample(q::StaticQuery,
-                     addr::Symbol)
-    @trace(q.forward_function(q.prior), addr)
-    return nothing
-end
+# Samples a `c::Context{C}` from the prior and scores the likelihood.
+# """
+# @gen function sample(q::StaticQuery,
+#                      addr::Symbol)
+#     @trace(q.forward_function(q.prior), addr)
+#     return nothing
+# end
 
 initialize_results(q::StaticQuery) = length(q.latents)
 

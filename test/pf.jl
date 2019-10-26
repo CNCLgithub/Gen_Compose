@@ -63,7 +63,7 @@ query = Gen_Compose.StaticQuery(latents,
 # Define the inference procedure
 # In this case we will be using a particle filter
 #
-# Additionally, this will be under the Sequential Monte-Carlo
+# Additionally, this will be under the Static Monte-Carlo
 # paradigm.
 
 n_particles = 1.

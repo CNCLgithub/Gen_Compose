@@ -14,10 +14,8 @@ prior = DeferredPrior(latents,
 
 
 trace,_ = generate(draw, (prior, :m))
-println(get_choices(trace))
 
 @gen function f()
     m = @trace(draw(prior, :b))
 end
 trace,_ = generate(f, tuple())
-println(get_choices(trace))

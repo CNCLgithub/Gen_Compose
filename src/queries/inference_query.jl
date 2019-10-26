@@ -36,5 +36,5 @@ export Query
 # export sample
 
 include("static_query.jl")
-# include("sequential_query.jl")
+include("sequential_query.jl")
 # include("factorized_query.jl")

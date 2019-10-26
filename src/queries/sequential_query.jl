@@ -1,16 +1,19 @@
-import Gen.sample
-
 export SequentialQuery,
     initialize_results,
     observation_address
 
-function create_obs_choicemap(c::T{D} where {T<:Gen.ChoiceMap, D<:AbstractVector})
-    sc = Gen.StaticChoiceMap(c)
-    values = Gen.get_values_shallow(sc)
+function _create_seq_obs(addr, obs::T where T<:AbstractVector)
+    c = Gen.choicemap()
+    set_value!(c, addr, obs)
+    Gen.StaticChoiceMap(c)
+end
+
+function create_seq_obs(c::T where T<:Gen.ChoiceMap)
+    values = Gen.get_values_shallow(c)
     if length(values) != 1
         error("Observation must have one shallow address")
     end
-    return sc
+    _create_seq_obs(first(values)...)
 end
 
 """
@@ -28,23 +31,37 @@ struct SequentialQuery <: Query
     args::T where T<:Tuple
     # A numerical structure that contains the observation(s)
     observations::C where C<:Gen.ChoiceMap
-    StaticQuery(latents, prior, forward_function, args, obs) =
-        new(latents, prior, forward_function, args, create_obs_choicemap(obs))
+    SequentialQuery(latents, prior, forward_function, args, obs) =
+        new(latents, prior, forward_function, args, create_seq_obs(obs))
 end;
 
-function gen_target_query(obs, addr)
+function gen_target_query(q, t, obs, addr)
     c = choicemap()
     set_value!(c, addr, obs)
-    Gen.StaticChoiceMap(c)
+    new_q = StaticQuery(q.latents,
+                        q.prior,
+                        q.forward_function,
+                        (q.args..., t),
+                        c)
+    return new_q
 end
 
 function atomize(q::SequentialQuery)
     (addr, values) = first(Gen.get_values_shallow(q.observations))
-    target_queries = Vector{Gen.StaticChoiceMap}(undef, length(values))
-    map(x -> gen_target_query(x, addr), values)
+    target_queries = Vector{StaticQuery}(undef, length(values))
+    for (t, x) in enumerate(values)
+        target_queries[t] = gen_target_query(q, t, x, addr)
+    end
+    # map((t,x) -> gen_target_query(q, t, x, addr),
+    #     enumerate(values))
+    return target_queries
 end
 
 initialize_results(q::SequentialQuery) = length(q.latents)
+function Base.length(q::SequentialQuery)
+    (_, obs) = first(Gen.get_values_shallow(q.observations))
+    length(obs)
+end
 
 function observation_address(q::SequentialQuery)
     (addr, _) = first(Gen.get_values_shallow(q.observations))

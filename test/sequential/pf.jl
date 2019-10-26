@@ -55,17 +55,29 @@ prior = DeferredPrior(latents,
 
 query = Gen_Compose.SequentialQuery(latents,
                                     prior,
-                                    noisy_line_model,
+                                    markov_model,
                                     tuple(),
                                     obs)
 
 # -----------------------------------------------------------
 # Define the inference procedure
-# In this case we will be using a MH
+# Define the inference procedure
+# In this case we will be using a particle filter
+#
+# Additionally, this will be under the Sequential Monte-Carlo
+# paradigm.
+n_particles = 100
+ess = n_particles * 0.5
+# defines the random variables used in rejuvination
+moves = [DynamicDistribution{Float64}(uniform, x -> (x-0.05, x+0.05))
+         DynamicDistribution{Float64}(uniform, x -> (x-0.1, x+0.1))]
 
-procedure = MetropolisHastings()
+# the rejuvination will follow Gibbs sampling
+rejuv = gibbs_steps(moves, latents)
 
-iterations = 100
-results = static_monte_carlo(procedure, query, iterations)
+procedure = ParticleFilter(n_particles,
+                           ess,
+                           rejuv)
 
+results = sequential_monte_carlo(procedure, query)
 # summarize(results)

@@ -13,7 +13,7 @@ function initialize_results(proc::InferenceProcedure,
                             query::SequentialQuery)
     inner = initialize_results(query)
     outer = initialize_results(proc)
-    dims = (iterations, outer..., inner...)
+    dims = (length(query), outer..., inner...)
     return SequentialTraceResult(query.latents, dims)
 end
 
