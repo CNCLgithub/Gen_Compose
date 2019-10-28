@@ -84,3 +84,5 @@ procedure = ParticleFilter(n_particles,
                            rejuv)
 
 results = sequential_monte_carlo(procedure, query)
+plot = visualize(results)
+plot |> PNG("smc-pf.png")

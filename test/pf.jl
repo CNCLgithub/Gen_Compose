@@ -66,7 +66,7 @@ query = Gen_Compose.StaticQuery(latents,
 # Additionally, this will be under the Static Monte-Carlo
 # paradigm.
 
-n_particles = 1.
+n_particles = 10
 ess = n_particles * 0.5
 # defines the random variables used in rejuvination
 moves = [DynamicDistribution{Float64}(uniform, x -> (x-0.05, x+0.05))
@@ -81,5 +81,6 @@ procedure = ParticleFilter(n_particles,
 
 iterations = 100
 results = static_monte_carlo(procedure, query, iterations)
+println(to_frame(results))
 
 # summarize(results)

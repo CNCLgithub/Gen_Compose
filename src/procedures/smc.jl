@@ -4,9 +4,11 @@ mutable struct SequentialTraceResult <: InferenceResult
     latents::T where T<:AbstractVector
     estimates::E where E<:AbstractArray{Float64}
     log_score::Array{Float64,2}
+    axis::String
     SequentialTraceResult(latents, dims) = new(latents,
-                                           Array{Float64}(undef, dims...),
-                                           Array{Float64}(undef, dims[1:2]...))
+                                               Array{Float64}(undef, dims...),
+                                               Array{Float64}(undef, dims[1:2]...),
+                                               "time")
 end
 
 function initialize_results(proc::InferenceProcedure,

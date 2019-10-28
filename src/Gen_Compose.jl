@@ -16,6 +16,7 @@ include("procedures/procedure.jl")
 # Misc
 include("perturbations/perturb.jl")
 
-greet() = print("Hello World!")
+include("analysis/analysis.jl")
+
 
 end # module
