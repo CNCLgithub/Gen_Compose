@@ -31,7 +31,8 @@ function static_monte_carlo(procedure::InferenceProcedure,
             if it == 1
                 state = initialize_procedure(procedure, query, addr)
             else
-                step_procedure!(state, procedure, query, addr)
+                step_procedure!(state, procedure, query, addr,
+                                mc_step!)
             end
             # Report step
             report_step!(results, state, query.latents, it)

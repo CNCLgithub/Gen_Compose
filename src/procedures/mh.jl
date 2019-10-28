@@ -13,9 +13,10 @@ end
 function step_procedure!(state,
                          proc::MetropolisHastings,
                          query::StaticQuery,
-                         addr)
+                         addr,
+                         step_func)
     selection = Gen.select(query.latents)
-    trace, _ = Gen.mh(state, selection)
+    trace, _ = mc_step!(state, selection)
     return trace
 end
 
@@ -33,5 +34,7 @@ function report_step!(results::T where T<:InferenceResult,
 end
 
 initialize_results(::MetropolisHastings) = (1,)
+
+mc_step!(state, selection) = Gen.mh(state, selection)
 
 export MetropolisHastings

@@ -38,23 +38,18 @@ end;
 function gen_target_query(q, t, obs, addr)
     c = choicemap()
     set_value!(c, addr, obs)
-    new_q = StaticQuery(q.latents,
+    args = (nothing, t, q.args...)
+    return  StaticQuery(q.latents,
                         q.prior,
                         q.forward_function,
-                        (q.args..., t),
+                        args,
                         c)
-    return new_q
 end
 
 function atomize(q::SequentialQuery)
     (addr, values) = first(Gen.get_values_shallow(q.observations))
-    target_queries = Vector{StaticQuery}(undef, length(values))
-    for (t, x) in enumerate(values)
-        target_queries[t] = gen_target_query(q, t, x, addr)
-    end
-    # map((t,x) -> gen_target_query(q, t, x, addr),
-    #     enumerate(values))
-    return target_queries
+    map(tx -> gen_target_query(q, tx..., addr),
+        enumerate(values))
 end
 
 initialize_results(q::SequentialQuery) = length(q.latents)

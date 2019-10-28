@@ -32,19 +32,23 @@ end;
 xs = Vector{Float64}(1:10)
 
 # The forward model
-@gen function markov_model(prior::DeferredPrior, t::Int, addr)
+@gen function markov_model(y::Union{Nothing, Float64}, t::Int,
+                           prior::DeferredPrior, addr)
     m = @trace(draw(prior, :m))
     b = @trace(draw(prior, :b))
-    y = m*t + b
-    y = @trace(normal(y, 0.1), addr)
-    return y
+    if typeof(y) == Nothing
+        y = b
+    end
+    new_y = y + m
+    return @trace(normal(new_y, 0.1), addr)
 end
 
 
 # Observations
 ys = 2.5*xs + fill(10.0, length(xs))
+ys = random_vec(ys, 0.1)
 obs = Gen.choicemap()
-Gen.set_value!(obs, :obs, random_vec(ys, 0.1))
+Gen.set_value!(obs, :y, ys)
 
 # define the prior over the set of latents
 latents = [:m, :b]
