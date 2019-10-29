@@ -87,16 +87,10 @@ results = sequential_monte_carlo(procedure, query)
 println(to_frame(results))
 
 using Gadfly
-import Cairo 
 function estimate_layer(estimate, geometry = Gadfly.Geom.histogram2d)
     layer(x = :t, y = estimate, geometry)
 end
 
-function plot_map(latents, estimates, xaxis,
-                  geometry = Gadfly.Geom.dot)
-    plot(x=xs, y=estimates, geometry,
-         Guide.xlabel(xaxis), Guide.ylabel(name))
-end
 
 """
 Returns a summary plot containing:

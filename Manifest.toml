@@ -198,11 +198,17 @@ git-tree-sha1 = "d14a6fa5890ea3a7e5dcab6811114f132fec2b4b"
 uuid = "53c48c17-4a7d-5ca2-90c5-79b7896eea93"
 version = "0.6.1"
 
+[[Fontconfig]]
+deps = ["BinaryProvider", "Libdl", "Printf"]
+git-tree-sha1 = "6304a6700682485b296bc6f5cc1c11c25b8f868e"
+uuid = "186bb1d3-e1f7-5a2c-a377-96d770f13627"
+version = "0.3.0"
+
 [[ForwardDiff]]
-deps = ["CommonSubexpressions", "DiffResults", "DiffRules", "InteractiveUtils", "LinearAlgebra", "NaNMath", "Random", "SparseArrays", "SpecialFunctions", "StaticArrays", "Test"]
-git-tree-sha1 = "4c4d727f1b7e0092134fabfab6396b8945c1ea5b"
+deps = ["CommonSubexpressions", "DiffResults", "DiffRules", "NaNMath", "Random", "SpecialFunctions", "StaticArrays"]
+git-tree-sha1 = "e2c81741a8be50de143ecddee942396894f47750"
 uuid = "f6369f11-7733-5829-9624-2563aa707210"
-version = "0.10.3"
+version = "0.10.4"
 
 [[FunctionWrappers]]
 deps = ["Compat"]
