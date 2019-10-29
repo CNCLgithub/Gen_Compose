@@ -4,7 +4,9 @@ authors = ["mario "]
 version = "0.1.0"
 
 [deps]
+Cairo = "159f3aea-2a34-519c-b102-8c37f9878175"
 Compose = "a81c6b42-2e10-5240-aca2-a61377ecd94b"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
+Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
 Gadfly = "c91e804a-d5a3-530f-b6f0-dfbca275c004"
 Gen = "ea4f424c-a589-11e8-07c0-fd5c91b9da4a"

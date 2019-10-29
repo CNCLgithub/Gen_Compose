@@ -36,7 +36,7 @@ xs = Vector{Float64}(1:10)
     m = @trace(draw(prior, :m))
     b = @trace(draw(prior, :b))
     ys = m*xs + fill(b, length(xs))
-    ys = @trace(random_vec(ys, 0.1), addr)
+    ys = @trace(random_vec(ys, 6), addr)
     return ys
 end
 
@@ -67,5 +67,6 @@ procedure = MetropolisHastings()
 
 iterations = 100
 results = static_monte_carlo(procedure, query, iterations)
+# println(to_frame(results))
 
 # summarize(results)

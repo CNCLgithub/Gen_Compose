@@ -3,7 +3,7 @@ using Compose
 
 export visualize
 
-function plot_latent(estimate, geometry = Gadfly.Geom.hexbin)
+function estimate_layer(estimate, geometry = Gadfly.Geom.hexbin)
     layer(x = :t, y = estimate, geometry)
 end
 
@@ -22,9 +22,10 @@ Returns a summary plot containing:
 function visualize(results::SequentialTraceResult)
     df = to_frame(results)
     # first the estimates
-    layers = map(estimate_layer, results.latents)
+    estimates = map(estimate_layer, results.latents)
     # last log scores
     log_scores = plot_latent(:log_score)
     plot = plot(df,
-                layers...)
+                estimates...,
+                log_scores)
 end

@@ -36,7 +36,7 @@ xs = Vector{Float64}(1:10)
     m = @trace(draw(prior, :m))
     b = @trace(draw(prior, :b))
     ys = m*xs + fill(b, length(xs))
-    ys = @trace(random_vec(ys, 0.1), addr)
+    ys = @trace(random_vec(ys, 3.), addr)
     return ys
 end
 
@@ -66,7 +66,7 @@ query = Gen_Compose.StaticQuery(latents,
 # Additionally, this will be under the Static Monte-Carlo
 # paradigm.
 
-n_particles = 10
+n_particles = 20
 ess = n_particles * 0.5
 # defines the random variables used in rejuvination
 moves = [DynamicDistribution{Float64}(uniform, x -> (x-0.05, x+0.05))
@@ -79,8 +79,7 @@ procedure = ParticleFilter(n_particles,
                            ess,
                            rejuv)
 
-iterations = 100
+iterations = 10
 results = static_monte_carlo(procedure, query, iterations)
-println(to_frame(results))
 
 # summarize(results)

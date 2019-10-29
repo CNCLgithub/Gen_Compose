@@ -1,3 +1,4 @@
+import Distributions
 
 struct ParticleFilter <: InferenceProcedure
     particles::U where U<:Int
@@ -9,14 +10,37 @@ end
 
 Helper that
 """
-function refine_and_resample!(proc::ParticleFilter,
-                              state::Gen.ParticleFilterState)
+function rejuvinate!(proc::ParticleFilter,
+                     state::Gen.ParticleFilterState)
     # add rejuvination
     for p=1:proc.particles
         state.traces[p] = proc.rejuvination(state.traces[p])
     end
+end
+function resample!(proc::ParticleFilter,
+                   state::Gen.ParticleFilterState)
     # Resample depending on ess
     Gen.maybe_resample!(state, ess_threshold=proc.ess)
+    # num_particles = length(state.traces)
+    # (log_total_weight, log_normalized_weights) = Gen.normalize_weights(state.log_weights)
+    # ess = Gen.effective_sample_size(log_normalized_weights)
+    # do_resample = ess < proc.ess
+    # if do_resample
+    #     weights = exp.(log_normalized_weights)
+    #     Distributions.rand!(Distributions.Categorical(weights / sum(weights)), state.parents)
+    #     state.log_ml_est += log_total_weight - log(num_particles)
+    #     println(state.parents)
+    #     for i=1:num_particles
+    #         state.new_traces[i] = state.traces[state.parents[i]]
+    #         state.log_weights[i] = state.log_weights[state.parents[i]]
+    #     end
+    #     # swap references
+    #     tmp = state.traces
+    #     state.traces = state.new_traces
+    #     state.new_traces = tmp
+    # end
+    # println(do_resample)
+
     return nothing
 end
 
@@ -30,7 +54,7 @@ function initialize_procedure(proc::ParticleFilter,
                                            (query.args..., query.prior, addr),
                                            obs,
                                            proc.particles)
-    refine_and_resample!(proc, state)
+    rejuvinate!(proc, state)
     return state
 end
 
@@ -40,6 +64,8 @@ function step_procedure!(state,
                          query::StaticQuery,
                          addr,
                          step_fun)
+    # Resample before moving on...
+    resample!(proc, state)
     sub_addr = observation_address(query)
     obs = choicemap()
     set_value!(obs, addr, get_value(query.observations, sub_addr))
@@ -48,7 +74,7 @@ function step_procedure!(state,
              (query.args..., query.prior, addr),
              (UnknownChange(),),
              obs)
-    refine_and_resample!(proc, state)
+    rejuvinate!(proc, state)
     return nothing
 end
 
@@ -60,10 +86,10 @@ function report_step!(results::T where T<:InferenceResult,
                       latents::Vector,
                       idx::Int)
     # copy log scores
-    results.log_score[idx, :] = Gen.get_log_weights(state)
     # retrieve estimates
     traces = Gen.get_traces(state)
     for (t_i,trace) in enumerate(traces)
+        results.log_score[idx, t_i] = Gen.get_score(trace)
         choices = Gen.get_choices(trace)
         for l = 1:length(latents)
             results.estimates[idx, t_i, l] = choices[latents[l]]

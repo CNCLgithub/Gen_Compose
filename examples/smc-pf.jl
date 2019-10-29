@@ -84,5 +84,35 @@ procedure = ParticleFilter(n_particles,
                            rejuv)
 
 results = sequential_monte_carlo(procedure, query)
+println(to_frame(results))
+
+using Gadfly
+import Cairo 
+function estimate_layer(estimate, geometry = Gadfly.Geom.histogram2d)
+    layer(x = :t, y = estimate, geometry)
+end
+
+function plot_map(latents, estimates, xaxis,
+                  geometry = Gadfly.Geom.dot)
+    plot(x=xs, y=estimates, geometry,
+         Guide.xlabel(xaxis), Guide.ylabel(name))
+end
+
+"""
+Returns a summary plot containing:
+
+1. The histogram of estimates as a function of time (for each latent)
+2. The histogram of log scores as a function of time
+"""
+function Gen_Compose.visualize(results::Gen_Compose.SequentialTraceResult)
+    df = to_frame(results)
+    # first the estimates
+    estimates = map(x -> Gadfly.plot(df, estimate_layer(x), Gadfly.Coord.cartesian(xmin = 1,
+                                                                                   xmax = 10)),
+                    results.latents)
+    # last log scores
+    log_scores = Gadfly.plot(df, estimate_layer(:log_score))
+    plot = vstack(estimates..., log_scores)
+end
 plot = visualize(results)
-plot |> PNG("smc-pf.png")
+plot |> SVG("smc-pf.svg",30cm, 30cm)
