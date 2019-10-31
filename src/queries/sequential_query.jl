@@ -13,7 +13,8 @@ function create_seq_obs(c::T where T<:Gen.ChoiceMap)
     if length(values) != 1
         error("Observation must have one shallow address")
     end
-    _create_seq_obs(first(values)...)
+    obs_addr, obs_value = first(values)
+    _create_seq_obs(obs_addr, obs_value)
 end
 
 """
