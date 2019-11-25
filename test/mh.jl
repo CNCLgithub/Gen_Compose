@@ -67,6 +67,6 @@ procedure = MetropolisHastings()
 
 iterations = 100
 results = static_monte_carlo(procedure, query, iterations)
-# println(to_frame(results))
+println(to_frame(results))
 
 # summarize(results)

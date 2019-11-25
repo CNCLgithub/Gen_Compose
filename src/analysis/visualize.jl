@@ -3,12 +3,13 @@ using Compose
 
 export visualize
 
-function estimate_layer(estimate, geometry = Gadfly.Geom.hexbin)
+function estimate_layer(df, estimate,
+                        geometry = Gadfly.Geom.histogram2d)
     layer(x = :t, y = estimate, geometry)
 end
 
 function plot_map(latents, estimates, xaxis,
-                  geometry = Gadfly.Geom.dot)
+                  geometry = Gadfly.Geom.line)
     plot(x=xs, y=estimates, geometry,
          Guide.xlabel(xaxis), Guide.ylabel(name))
 end
@@ -21,6 +22,8 @@ Returns a summary plot containing:
 """
 function visualize(results::SequentialTraceResult)
     df = to_frame(results)
+    estimates = map(x -> Gadfly.plot(df, estimate_layer(x)),
+                    results.latents)
     # first the estimates
     estimates = map(estimate_layer, results.latents)
     # last log scores
