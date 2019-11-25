@@ -65,7 +65,6 @@ query = Gen_Compose.SequentialQuery(latents,
 
 # -----------------------------------------------------------
 # Define the inference procedure
-# Define the inference procedure
 # In this case we will be using a particle filter
 #
 # Additionally, this will be under the Sequential Monte-Carlo
