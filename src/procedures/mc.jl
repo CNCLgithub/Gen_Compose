@@ -8,6 +8,8 @@ mutable struct StaticTraceResult <: InferenceResult
                                            Array{Float64}(undef, dims[1:2]...))
 end
 
+
+
 function initialize_results(proc::InferenceProcedure,
                             query::StaticQuery,
                             iterations::Int)
@@ -22,21 +24,12 @@ function static_monte_carlo(procedure::InferenceProcedure,
                             iterations::Int)
     # Initialized data structures that hold inference traces
     results = initialize_results(procedure, query, iterations)
+    state = initialize_procedure(procedure, query)
+    report_step!(results, state, 1)
 
-    # Begin inference procedure
-    let
-        state = Nothing;
-        for it in 1:iterations
-            addr = :iter => it
-            if it == 1
-                state = initialize_procedure(procedure, query, addr)
-            else
-                step_procedure!(state, procedure, query, addr,
-                                mc_step!)
-            end
-            # Report step
-            report_step!(results, state, query.latents, it)
-        end
+    for it in 2:iterations
+        mc_step!(state, procedure, query)
+        report_step!(results, state, it)
     end
     return results
 end

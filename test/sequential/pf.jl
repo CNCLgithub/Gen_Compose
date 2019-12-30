@@ -32,15 +32,15 @@ end;
 xs = Vector{Float64}(1:10)
 
 # The forward model
-@gen function markov_model(y::Union{Nothing, Float64}, t::Int,
-                           prior::DeferredPrior, addr)
-    m = @trace(draw(prior, :m))
-    b = @trace(draw(prior, :b))
-    if typeof(y) == Nothing
-        y = b
-    end
-    new_y = y + m
-    return @trace(normal(new_y, 0.1), addr)
+@gen function markov_model(y::Union{Nothing, Float64}, t::Int)
+    m = @trace(uniform(-4, 4), :m)
+    b = @trace(uniform(-20, 20), :b)
+    new_y =  @trace(normal(m*t + b, 0.1), (:y, t))
+    # if typeof(y) == Nothing
+    #     y = b
+    # end
+    # new_y = y + m
+    return new_y
 end
 
 
@@ -52,15 +52,10 @@ Gen.set_value!(obs, :y, ys)
 
 # define the prior over the set of latents
 latents = [:m, :b]
-prior = DeferredPrior(latents,
-                      [StaticDistribution{Float64}(uniform, (-4, 4))
-                       StaticDistribution{Float64}(uniform, (-20, 20))])
-
-
+args = [(x,) for x in xs]
 query = Gen_Compose.SequentialQuery(latents,
-                                    prior,
                                     markov_model,
-                                    tuple(),
+                                    args,
                                     obs)
 
 # -----------------------------------------------------------
@@ -69,7 +64,7 @@ query = Gen_Compose.SequentialQuery(latents,
 #
 # Additionally, this will be under the Sequential Monte-Carlo
 # paradigm.
-n_particles = 100
+n_particles = 1000
 ess = n_particles * 0.5
 # defines the random variables used in rejuvination
 moves = [DynamicDistribution{Float64}(uniform, x -> (x-0.05, x+0.05))
@@ -82,4 +77,7 @@ procedure = ParticleFilter(n_particles,
                            ess,
                            rejuv)
 
-results = sequential_monte_carlo(procedure, query)
+# first run to compile
+sequential_monte_carlo(procedure, query)
+@time results = sequential_monte_carlo(procedure, query)
+println(last(sort(to_frame(results), :log_score), 10))

@@ -3,12 +3,12 @@ export StaticQuery,
     observation_address
 
 function create_obs_choicemap(c::T where T<:Gen.ChoiceMap)
-    sc = Gen.StaticChoiceMap(c)
-    values = Gen.get_values_shallow(sc)
+    # sc = Gen.StaticChoiceMap(c)
+    values = Gen.get_values_shallow(c)
     if length(values) != 1
         error("Observation must have one shallow address")
     end
-    return sc
+    return c
 end
 
 """
@@ -16,20 +16,25 @@ end
 Defines a singule target distribution
 """
 struct StaticQuery <: Query
-    # A list of selections describing the latents to infer
-    latents::AbstractVector{T} where {T}
-    # latents::T where T<:Gen.Selection
-    # Random variables describing the prior over each latent
-    prior::DeferredPrior
+    # A collection of latents in the left hand of the posterior
+    latents::Vector{Any}
     # The forward function
     forward_function::T where T<:Gen.GenerativeFunction
     args::T where T<:Tuple
     # A numerical structure that contains the observation(s)
-    observations::C where C<:Gen.ChoiceMap
-    StaticQuery(latents, prior, forward_function, args, obs) =
-        new(latents, prior, forward_function, args, create_obs_choicemap(obs))
-end;
+    observations::Gen.ChoiceMap
+    StaticQuery(selection, gm, args, obs) = new(selection, gm, args,
+                                                 create_obs_choicemap(obs))
+end
 
+# TODO: Implement infinite iterable
+
+initialize_results(q::StaticQuery) = length(q.latents)
+
+function observation_address(q::StaticQuery)
+    (addr, _) = first(Gen.get_values_shallow(q.observations))
+    return addr
+end
 
 # """
 #    sample(q::InferenceQuery{L,C,O})
@@ -43,10 +48,3 @@ end;
 #     @trace(q.forward_function(q.prior), addr)
 #     return nothing
 # end
-
-initialize_results(q::StaticQuery) = length(q.latents)
-
-function observation_address(q::StaticQuery)
-    (addr, _) = first(Gen.get_values_shallow(q.observations))
-    return addr
-end

@@ -32,11 +32,12 @@ end;
 xs = Vector{Float64}(1:10)
 
 # The forward model
-@gen function noisy_line_model(prior::DeferredPrior, addr)
-    m = @trace(draw(prior, :m))
-    b = @trace(draw(prior, :b))
+# The forward model
+@gen function noisy_line_model(xs::Vector{Float64})
+    m = @trace(uniform(-4, 4), :m)
+    b = @trace(uniform(-20, 20), :b)
     ys = m*xs + fill(b, length(xs))
-    ys = @trace(random_vec(ys, 3.), addr)
+    ys = @trace(random_vec(ys, 1.0), :ys)
     return ys
 end
 
@@ -44,19 +45,15 @@ end
 # Observations
 ys = 2.5*xs + fill(10.0, length(xs))
 obs = Gen.choicemap()
-Gen.set_value!(obs, :obs, random_vec(ys, 0.1))
+Gen.set_value!(obs, :ys, random_vec(ys, 0.1))
 
 # define the prior over the set of latents
 latents = [:m, :b]
-prior = DeferredPrior(latents,
-                      [StaticDistribution{Float64}(uniform, (-4, 4))
-                       StaticDistribution{Float64}(uniform, (-20, 20))])
 
 
 query = Gen_Compose.StaticQuery(latents,
-                                prior,
                                 noisy_line_model,
-                                tuple(),
+                                (xs,),
                                 obs)
 
 # -----------------------------------------------------------
@@ -79,7 +76,7 @@ procedure = ParticleFilter(n_particles,
                            ess,
                            rejuv)
 
-iterations = 10
-results = static_monte_carlo(procedure, query, iterations)
-
-# summarize(results)
+iterations = 100
+static_monte_carlo(procedure, query, iterations);
+@time results = static_monte_carlo(procedure, query, iterations)
+println(last(sort(to_frame(results), :log_score), 10))

@@ -1,33 +1,31 @@
-struct MetropolisHastings <: InferenceProcedure end
+struct MetropolisHastings <: InferenceProcedure
+    update::T where T<:Function
+end
 
 mutable struct MHTrace
     current_trace::T where T<:Gen.DynamicDSLTrace
 end
 
 function initialize_procedure(proc::MetropolisHastings,
-                              query::StaticQuery,
-                              addr)
+                              query::StaticQuery)
     addr = observation_address(query)
     trace,_ = Gen.generate(query.forward_function,
-                           (query.prior, query.args..., addr),
+                           query.args,
                            query.observations)
     return MHTrace(trace)
 end
 
-function step_procedure!(state::MHTrace,
-                         proc::MetropolisHastings,
-                         query::StaticQuery,
-                         addr,
-                         step_func)
-    selection = Gen.select(query.latents...)
-    state.current_trace, accepted = mc_step!(state, selection)
+function mc_step!(state::MHTrace,
+                  proc::MetropolisHastings,
+                  query::StaticQuery)
+    state.current_trace = proc.update(state.current_trace)
     return nothing
 end
 
 function report_step!(results::T where T<:InferenceResult,
                       state::MHTrace,
-                      latents::Vector,
                       idx::Int)
+    latents = results.latents
     # copy log scores
     trace = state.current_trace
     results.log_score[idx] = Gen.get_score(trace)
@@ -40,6 +38,6 @@ end
 
 initialize_results(::MetropolisHastings) = (1,)
 
-mc_step!(state, selection) = Gen.mh(state.current_trace, selection)
+smc_step!() = error("unimplemented")
 
 export MetropolisHastings
