@@ -9,7 +9,9 @@ abstract type InferenceResult end
 """
 function initialize_procedure end
 
-function step_procedure end
+function mc_step! end
+
+function smc_step! end
 
 """
 The result frame is defined both by the outer loop (the inference procedure)
