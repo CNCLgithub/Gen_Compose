@@ -23,20 +23,24 @@ Defines a singule target distribution
 """
 struct SequentialQuery <: Query
     # A list of selections describing the latents to infer
-    latents::AbstractVector{T} where {T}
+    latents::Dict{Symbol, Function}
     # The forward function
     forward_function::T where T<:Gen.GenerativeFunction
+    initial_args::Tuple
+    initial_constraints::Gen.ChoiceMap
     args::Vector{Tuple}
     # A numerical structure that contains the observation(s)
-    observations::C where C<:Gen.ChoiceMap
-    SequentialQuery(latents, forward_function, args, obs) =
-        new(latents, forward_function, args, create_seq_obs(obs))
+    observations::Vector{Gen.ChoiceMap}
+    # SequentialQuery(latents, forward_function, args, obs) =
+    #     new(latents, forward_function, args, create_seq_obs(obs))
 end;
+
+initial_args(q::SequentialQuery) = q.initial_args
+initial_constraints(q::SequentialQuery) = q.initial_constraints
 
 initialize_results(q::SequentialQuery) = length(q.latents)
 function Base.length(q::SequentialQuery)
-    (_, obs) = first(Gen.get_values_shallow(q.observations))
-    length(obs)
+    min(length(q.observations), length(q.args))
 end
 
 function observation_address(q::SequentialQuery)
@@ -48,13 +52,11 @@ function Base.iterate(q::SequentialQuery, state::Int = 1)
     if state > length(q)
         return nothing
     else
-        (addr, values) = first(Gen.get_values_shallow(q.observations))
-        obs = choicemap()
-        set_value!(obs, (addr, state), values[state])
-        # nothing is the initial state of the gm
         # TODO: refine argument indexing
-        args = (nothing, q.args[state]...)
-        (StaticQuery(q.latents, q.forward_function, args, obs),
+        obs = q.observations[state]
+        args = q.args[state]
+        latents = [m(state) for (_,m) in q.latents]
+        (StaticQuery(latents, q.forward_function, args, obs),
          state + 1)
     end
 end
