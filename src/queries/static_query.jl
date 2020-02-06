@@ -23,8 +23,8 @@ struct StaticQuery <: Query
     args::T where T<:Tuple
     # A numerical structure that contains the observation(s)
     observations::Gen.ChoiceMap
-    StaticQuery(selection, gm, args, obs) = new(selection, gm, args,
-                                                 create_obs_choicemap(obs))
+    StaticQuery(selection, gm, args, obs) = new(selection, gm, args, obs)
+                                                 # create_obs_choicemap(obs))
 end
 
 # TODO: Implement infinite iterable

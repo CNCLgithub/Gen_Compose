@@ -1,22 +1,23 @@
+using Base.Iterators
 using DataFrames
 
 export to_frame,
     extract_map
 
 function _to_frame(results, axis)
-    dims = size(results.estimates)
-    samples = collect(1:dims[2])
-    names = [axis, :sid, results.latents..., :log_score]
-    total = DataFrame()
-    for t = 1:first(dims), s = samples
-        row =(t,
-              s,
-              results.estimates[t, s, :]...,
-              results.log_score[t,s])
-        column = collect(map(x -> [x],row))
-        append!(total, DataFrame(column, names))
+
+    latents = tracked_latents(results)
+    dims = size(results.log_score)
+    samples = collect(1:dims[1])
+    df = DataFrame()
+    df[axis] = repeat(samples, inner = dims[2])
+    df[:sid] = repeat(collect(1:dims[2]), dims[1])
+
+    for l in latents
+        df[l] = collect(Base.Iterators.flatten(results.estimates[l]'))
     end
-    return total
+    df[:log_score] = collect(Base.Iterators.flatten(results.log_score'))
+    return df
 end
 
 function to_frame(results::SequentialTraceResult)

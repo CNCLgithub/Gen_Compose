@@ -29,55 +29,80 @@ end;
 #
 # The posterior to compute is P(m,b | ys)
 
-xs = Vector{Float64}(1:10)
 
-# The forward model
-@gen function markov_model(y::Union{Nothing, Float64}, t::Int)
-    m = @trace(uniform(-4, 4), :m)
-    b = @trace(uniform(-20, 20), :b)
-    new_y =  @trace(normal(m*t + b, 0.1), (:y, t))
-    # if typeof(y) == Nothing
-    #     y = b
-    # end
-    # new_y = y + m
+@gen (static) function kernel(t::Int, prev_y, m, noise)
+    new_y = m + prev_y
+    @trace(normal(m + prev_y, noise), :y)
     return new_y
 end
 
+chain = Gen.Unfold(kernel)
 
-# Observations
-ys = 2.5*xs + fill(10.0, length(xs))
-ys = random_vec(ys, 0.1)
-obs = Gen.choicemap()
-Gen.set_value!(obs, :y, ys)
+@gen (static) function generative_model(T::Int)
+    noise = 0.1
+    m = @trace(normal(0, 4), :m)
+    b = @trace(normal(0, 20), :b)
+    y0 = @trace(normal(b, noise), :y0)
+    states = @trace(chain(T, y0, m, noise), :chain)
+    results = (y0, states)
+    return results
+end
 
-# define the prior over the set of latents
-latents = [:m, :b]
-args = [(x,) for x in xs]
-query = Gen_Compose.SequentialQuery(latents,
-                                    markov_model,
-                                    args,
-                                    obs)
+Gen.load_generated_functions()
 
-# -----------------------------------------------------------
-# Define the inference procedure
-# In this case we will be using a particle filter
-#
-# Additionally, this will be under the Sequential Monte-Carlo
-# paradigm.
-n_particles = 1000
-ess = n_particles * 0.5
-# defines the random variables used in rejuvination
-moves = [DynamicDistribution{Float64}(uniform, x -> (x-0.05, x+0.05))
-         DynamicDistribution{Float64}(uniform, x -> (x-0.1, x+0.1))]
+function test()
+    # Observations
+    xs = Vector{Float64}(1:5)
+    ys = 2.5*xs + fill(10.0, length(xs))
+    ys = random_vec(ys, 0.1)
+    # Initial constraints for particle filter
+    initial_obs = Gen.choicemap()
+    initial_obs[:y0] = normal(10.0, 0.1)
+    # Observations to condition sampling
+    obs = Vector{Gen.ChoiceMap}(undef, length(xs))
+    for i = 1:length(xs)
+        cm = Gen.choicemap()
+        cm[:chain => i => :y] = ys[i]
+        obs[i] = cm
+    end
 
-# the rejuvination will follow Gibbs sampling
-rejuv = gibbs_steps(moves, latents)
+    latents = Dict(
+        :m => x -> :m,
+        :b => x -> :b
+    )
+    args = [(Int(x),) for x in xs]
 
-procedure = ParticleFilter(n_particles,
-                           ess,
-                           rejuv)
+    query = Gen_Compose.SequentialQuery(latents,
+                                        generative_model,
+                                        (0,),
+                                        initial_obs,
+                                        args,
+                                        obs)
 
-# first run to compile
-sequential_monte_carlo(procedure, query)
-@time results = sequential_monte_carlo(procedure, query)
-println(last(sort(to_frame(results), :log_score), 10))
+    # -----------------------------------------------------------
+    # Define the inference procedure
+    # In this case we will be using a particle filter
+    #
+    # Additionally, this will be under the Sequential Monte-Carlo
+    # paradigm.
+    n_particles = 3
+    ess = n_particles * 0.5
+
+    # defines the random variables used in rejuvination
+    function rejuv(trace)
+        (trace, _) = Gen.mh(trace, Gen.select(:m, :b))
+        return trace
+    end
+
+    procedure = ParticleFilter(n_particles,
+                            ess,
+                            rejuv)
+
+    # first run to compile
+    sequential_monte_carlo(procedure, query)
+    @time results = sequential_monte_carlo(procedure, query)
+    println(sort(to_frame(results), (:t, :log_score)))
+
+end
+
+test()
