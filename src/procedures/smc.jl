@@ -1,24 +1,30 @@
 export sequential_monte_carlo,
     tracked_latents
 
+import Base.Filesystem
+using FileIO
+using JLD2
+
 mutable struct SequentialTraceResult <: InferenceResult
-    estimates::Dict{Symbol, Array{Float64}}
-    log_score::Array{Float64,2}
-    axis::String
+    path::String
+    io::JLD2.JLDFile
 end
 
 function initialize_results(proc::InferenceProcedure,
                             query::SequentialQuery)
     # inner = initialize_results(query)
-    t = length(query)
-    dims = (t, initialize_results(proc)...)
-    ests = Dict([(l, Array{Float64}(undef, dims...))
-                 for l in keys(query.latents)])
-    lgs = Matrix{Float64}(undef, dims...)
-    return SequentialTraceResult(ests, lgs, "time")
+    (path, _) = Base.Filesystem.mktemp("/dev/shm", cleanup = false)
+    io = jldopen(path, "w")
+    io["query"] = query
+    io["procedure"] = proc
+    return SequentialTraceResult(path, io)
 end
 
-tracked_latents(r::SequentialTraceResult) = keys(r.estimates)
+function record_state(r::SequentialTraceResult, key, state)
+    io = jldopen(r.path, "a+")
+    io[key] = state
+    return nothing
+end
 
 function sequential_monte_carlo(procedure::InferenceProcedure,
                                 query::SequentialQuery)
@@ -30,9 +36,9 @@ function sequential_monte_carlo(procedure::InferenceProcedure,
     # Iterate across target distributions define in query
     targets = collect(query)
     for (it, target) in enumerate(targets)
-        smc_step!(state, procedure, target)
+        aux_state = smc_step!(state, procedure, target)
         report_step!(results, state, query, it)
+        report_aux!(results, aux_state, query, it)
     end
     return results
 end
-

@@ -68,7 +68,9 @@ function test()
 
     latents = Dict(
         :m => x -> :m,
-        :b => x -> :b
+        :b => x -> :b,
+        :y0 => x -> :y0,
+        :y_t => x -> :chain => x => :y
     )
     args = [(Int(x),) for x in xs]
 
@@ -85,12 +87,12 @@ function test()
     #
     # Additionally, this will be under the Sequential Monte-Carlo
     # paradigm.
-    n_particles = 3
+    n_particles = 1000
     ess = n_particles * 0.5
 
     # defines the random variables used in rejuvination
     function rejuv(trace)
-        (trace, _) = Gen.mh(trace, Gen.select(:m, :b))
+        (trace, _) = Gen.mh(trace, Gen.select(:m, :b, :y0))
         return trace
     end
 
@@ -101,7 +103,8 @@ function test()
     # first run to compile
     sequential_monte_carlo(procedure, query)
     @time results = sequential_monte_carlo(procedure, query)
-    println(sort(to_frame(results), (:t, :log_score)))
+    println(results.io)
+    # println(sort(to_frame(results), (:t, :log_score)))
 
 end
 
