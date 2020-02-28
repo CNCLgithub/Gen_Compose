@@ -17,6 +17,7 @@ function rejuvinate!(proc::AbstractParticleFilter,
         state.traces[p] = proc.rejuvination(state.traces[p])
     end
 end
+
 function resample!(proc::AbstractParticleFilter,
                    state::Gen.ParticleFilterState)
     # Resample depending on ess
@@ -95,11 +96,19 @@ function report_step!(results::InferenceResult,
     return nothing
 end
 
-function report_aux!(results::InferenceResult,
-                     aux_state,
-                     query::Query,
-                     idx::Int)
-    # key = "aux_state/$idx"
-    # state_group = record_state(results, key, state)
+function report_aux!(results::Gen_Compose.InferenceResult,
+                                 aux_state,
+                                 query::Query,
+                                 idx::Int)
+    key = "aux_state/$idx"
+    state_group = Gen_Compose.record_state(results, key, aux_state)
     return nothing
 end
+# function report_aux!(results::InferenceResult,
+#                      aux_state,
+#                      query::Query,
+#                      idx::Int)
+#     # key = "aux_state/$idx"
+#     # state_group = record_state(results, key, state)
+#     return nothing
+# end

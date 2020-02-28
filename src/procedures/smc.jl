@@ -1,5 +1,6 @@
 export sequential_monte_carlo,
-    tracked_latents
+    tracked_latents,
+    save_state
 
 import Base.Filesystem
 using FileIO
@@ -13,7 +14,7 @@ end
 function initialize_results(proc::InferenceProcedure,
                             query::SequentialQuery)
     # inner = initialize_results(query)
-    (path, _) = Base.Filesystem.mktemp("/dev/shm", cleanup = false)
+    (path, _) = Base.Filesystem.mktemp("/dev/shm", cleanup = true)
     io = jldopen(path, "w")
     io["query"] = query
     io["procedure"] = proc
@@ -24,6 +25,13 @@ function record_state(r::SequentialTraceResult, key, state)
     io = jldopen(r.path, "a+")
     io[key] = state
     return nothing
+end
+
+function save_state(r::SequentialTraceResult, path::String)
+    Base.Filesystem.cp(r.path, path)
+end
+
+function resume_inference(path::String)
 end
 
 function sequential_monte_carlo(procedure::InferenceProcedure,
