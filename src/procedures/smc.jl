@@ -15,6 +15,7 @@ function initialize_results(proc::InferenceProcedure,
                             query::SequentialQuery)
     # inner = initialize_results(query)
     (path, _) = Base.Filesystem.mktemp("/dev/shm", cleanup = true)
+
     io = jldopen(path, "w")
     io["query"] = query
     io["procedure"] = proc
@@ -22,13 +23,14 @@ function initialize_results(proc::InferenceProcedure,
 end
 
 function record_state(r::SequentialTraceResult, key, state)
-    io = jldopen(r.path, "a+")
-    io[key] = state
+    # io = jldopen(r.path, "a+")
+    r.io[key] = state
     return nothing
 end
 
 function save_state(r::SequentialTraceResult, path::String)
-    Base.Filesystem.cp(r.path, path)
+    close(r.io)
+    Base.Filesystem.cp(r.path, path, force = true)
 end
 
 function resume_inference(path::String)
