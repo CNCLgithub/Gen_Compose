@@ -19,9 +19,10 @@ function rejuvinate!(proc::AbstractParticleFilter,
 end
 
 function resample!(proc::AbstractParticleFilter,
-                   state::Gen.ParticleFilterState)
+                   state::Gen.ParticleFilterState,
+				   verbose=false)
     # Resample depending on ess
-    Gen.maybe_resample!(state, ess_threshold=proc.ess)
+    Gen.maybe_resample!(state, ess_threshold=proc.ess, verbose=verbose)
     return nothing
 end
 
