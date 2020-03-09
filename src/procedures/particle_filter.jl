@@ -20,7 +20,7 @@ end
 
 function resample!(proc::AbstractParticleFilter,
                    state::Gen.ParticleFilterState,
-				   verbose=false)
+                   verbose=false)
     # Resample depending on ess
     Gen.maybe_resample!(state, ess_threshold=proc.ess, verbose=verbose)
     return nothing
@@ -88,28 +88,40 @@ function smc_step!(state::Gen.ParticleFilterState,
     return nothing
 end
 
+# function copy_choices!(dst, src)
+#     for (k,v) in Gen.get_values_shallow(src)
+#         dst[k] = v
+#     end
+#     for (k,v) in Gen.get_submaps_shallow(src)
+#         cm = Gen.choicemap()
+#         copy_choices!(cm, v)
+#         Gen.set_submap!(dst, k, cm)
+#     end
+# end
+
+    # choices = Vector{Gen.DynamicChoiceMap}(undef, length(state.traces))
+    # traces = Gen.get_traces(state)
+    # for i = 1:length(traces)
+    #     tc = Gen.get_choices(traces[i])
+    #     cm = Gen.choicemap()
+    #     copy_choices!(cm, tc)
+    #     choices[i] = cm
+    # end
+    # record_state(results, key, choices)
 function report_step!(results::InferenceResult,
                       state::Gen.ParticleFilterState,
                       query::Query,
                       idx::Int)
     key = "state/$idx"
-    state_group = record_state(results, key, state)
+    record_state(results, key, state)
     return nothing
 end
 
 function report_aux!(results::Gen_Compose.InferenceResult,
-                                 aux_state,
-                                 query::Query,
-                                 idx::Int)
+                     aux_state,
+                     query::Query,
+                     idx::Int)
     key = "aux_state/$idx"
-    state_group = Gen_Compose.record_state(results, key, aux_state)
+    record_state(results, key, aux_state)
     return nothing
 end
-# function report_aux!(results::InferenceResult,
-#                      aux_state,
-#                      query::Query,
-#                      idx::Int)
-#     # key = "aux_state/$idx"
-#     # state_group = record_state(results, key, state)
-#     return nothing
-# end
