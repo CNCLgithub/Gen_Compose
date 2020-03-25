@@ -22,7 +22,7 @@ function mc_step!(state::MHTrace,
     return nothing
 end
 
-function report_step!(results::T where T<:InferenceResult,
+function report_step!(results::T where T<:InferenceChain,
                       state::MHTrace,
                       idx::Int)
     latents = results.latents

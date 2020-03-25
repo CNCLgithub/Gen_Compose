@@ -1,6 +1,7 @@
 export AbstractParticleFitler,
     ParticleFilter
 
+using Base.Filesystem
 import Distributions
 
 abstract type AbstractParticleFilter <: InferenceProcedure end
@@ -9,6 +10,8 @@ struct ParticleFilter <: AbstractParticleFilter
     ess::Float64
     rejuvination::T where T<:Function
 end
+
+
 
 function rejuvinate!(proc::AbstractParticleFilter,
                      state::Gen.ParticleFilterState)
@@ -59,7 +62,7 @@ function mc_step!(state::Gen.ParticleFilterState,
 end
 
 function static_particle_filter_step!(state::Gen.ParticleFilterState,
-                      query::StaticQuery)
+                                      query::StaticQuery)
     selection = Gen.select(query.latents)
     for i=1:length(state.traces)
         (state.new_traces[i],
@@ -88,36 +91,47 @@ function smc_step!(state::Gen.ParticleFilterState,
     return nothing
 end
 
-# function copy_choices!(dst, src)
-#     for (k,v) in Gen.get_values_shallow(src)
-#         dst[k] = v
-#     end
-#     for (k,v) in Gen.get_submaps_shallow(src)
-#         cm = Gen.choicemap()
-#         copy_choices!(cm, v)
-#         Gen.set_submap!(dst, k, cm)
-#     end
-# end
 
-    # choices = Vector{Gen.DynamicChoiceMap}(undef, length(state.traces))
-    # traces = Gen.get_traces(state)
-    # for i = 1:length(traces)
-    #     tc = Gen.get_choices(traces[i])
-    #     cm = Gen.choicemap()
-    #     copy_choices!(cm, tc)
-    #     choices[i] = cm
-    # end
-    # record_state(results, key, choices)
-function report_step!(results::InferenceResult,
+mutable struct SeqPFChain <: SequentialChain
+    buffer::Vector{T} where {T}
+    buffer_idx::Int
+    state_idx::Int
+    path::Union{String, Nothing}
+end
+
+get_state_type(p::AbstractParticleFilter) = Gen.ParticleFilterState
+
+function initialize_results(proc::AbstractParticleFilter,
+                            query::SequentialQuery;
+                            path::Union{String, Nothing} = nothing,
+                            buffer_size::Int = 20)
+
+    buffer_type = get_state_type(proc)
+    buffer = Vector{buffer_type}(undef, buffer_size)
+    isnothing(path) || isfile(path) && rm(path)
+    return SeqPFChain(buffer, 1, 1, path)
+end
+
+function report_step!(results::SeqPFChain,
                       state::Gen.ParticleFilterState,
                       query::Query,
                       idx::Int)
-    key = "state/$idx"
-    record_state(results, key, state)
+    n = length(results.buffer)
+    results.buffer[results.buffer_idx] = state
+
+    if (results.buffer_idx == n)
+        record_state!(results)
+        buffer = Vector{Gen.ParticleFilterState}(undef, n)
+        results.buffer = buffer
+        results.buffer_idx = 1
+    else
+        results.buffer_idx += 1
+    end
+    results.state_idx += 1
     return nothing
 end
 
-function report_aux!(results::Gen_Compose.InferenceResult,
+function report_aux!(results::SeqPFChain,
                      aux_state,
                      query::Query,
                      idx::Int)

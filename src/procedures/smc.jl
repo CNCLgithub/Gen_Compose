@@ -6,38 +6,29 @@ import Base.Filesystem
 using FileIO
 using JLD2
 
-mutable struct SequentialTraceResult <: InferenceResult
-    path::String
-    io::JLD2.JLDFile
-end
+abstract type SequentialChain <: InferenceChain end
 
-function initialize_results(proc::InferenceProcedure,
-                            query::SequentialQuery)
-    (path, _) = Base.Filesystem.mktemp("/dev/shm", cleanup = true)
 
-    io = jldopen(path, "w")
-    io["procedure"] = proc
-    io["query"] = query
-    return SequentialTraceResult(path, io)
-end
-
-function record_state(r::SequentialTraceResult, key, state)
-    r.io[key] = state
-    return nothing
-end
-
-function save_state(r::SequentialTraceResult, path::String)
-    close(r.io)
-    Base.Filesystem.cp(r.path, path, force = true)
+function record_state!(r::SequentialChain)
+    start = r.state_idx - r.buffer_idx + 1
+    if !isnothing(r.path)
+        jldopen(r.path, "a+") do file
+            for (i,j) = enumerate(start:r.state_idx)
+                file["state/$j"] = r.buffer[i]
+            end
+        end
+    end
 end
 
 function resume_inference(path::String)
+    error("not implemented")
 end
 
 function sequential_monte_carlo(procedure::InferenceProcedure,
-                                query::SequentialQuery)
+                                query::SequentialQuery;
+                                path::Union{String, Nothing} = nothing)
     # Initialized data structures that hold inference traces
-    results = initialize_results(procedure, query)
+    results = initialize_results(procedure, query, path = path)
 
     # Initialize inference state
     state = initialize_procedure(procedure, query)
@@ -46,7 +37,7 @@ function sequential_monte_carlo(procedure::InferenceProcedure,
     for (it, target) in enumerate(targets)
         aux_state = smc_step!(state, procedure, target)
         report_step!(results, state, query, it)
-        report_aux!(results, aux_state, query, it)
+        # report_aux!(results, aux_state, query, it)
     end
     return results
 end
