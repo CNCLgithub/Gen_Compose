@@ -1,5 +1,5 @@
 
-mutable struct StaticTraceResult <: InferenceResult
+mutable struct StaticTraceResult <: InferenceChain
     latents::T where T<:AbstractVector
     estimates::E where E<:AbstractArray{Float64}
     log_score::Array{Float64,2}

@@ -1,7 +1,7 @@
 
 "Computes a posterior query"
 abstract type InferenceProcedure end
-abstract type InferenceResult end
+abstract type InferenceChain end
 
 """
     state = initialize_procedure(proc::InferenceProcedure,
