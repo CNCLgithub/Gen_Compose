@@ -9,12 +9,12 @@ using JLD2
 abstract type SequentialChain <: InferenceChain end
 
 
-function record_state!(r::SequentialChain)
-    start = r.state_idx - r.buffer_idx + 1
+function record_state!(r::SequentialChain, start::Int, stop::Int)
     if !isnothing(r.path)
         jldopen(r.path, "a+") do file
-            for (i,j) = enumerate(start:r.state_idx)
-                file["state/$j"] = r.buffer[i]
+            for (i,j) = enumerate(start:stop)
+                println("$i $j")
+                file["state/$j"] = r.towrite_buffer[i]
             end
         end
     end

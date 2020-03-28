@@ -35,7 +35,7 @@ function initialize_procedure(proc::AbstractParticleFilter,
                                            query.args,
                                            query.observations,
                                            proc.particles)
-    rejuvinate!(proc, state)
+    # rejuvinate!(proc, state)
     return state
 end
 
@@ -95,7 +95,6 @@ end
 mutable struct SeqPFChain <: SequentialChain
     buffer::Vector{T} where {T}
     buffer_idx::Int
-    state_idx::Int
     path::Union{String, Nothing}
 end
 
@@ -104,12 +103,12 @@ get_state_type(p::AbstractParticleFilter) = Gen.ParticleFilterState
 function initialize_results(proc::AbstractParticleFilter,
                             query::SequentialQuery;
                             path::Union{String, Nothing} = nothing,
-                            buffer_size::Int = 20)
+                            buffer_size::Int = 40)
 
     buffer_type = get_state_type(proc)
     buffer = Vector{buffer_type}(undef, buffer_size)
     isnothing(path) || isfile(path) && rm(path)
-    return SeqPFChain(buffer, 1, 1, path)
+    return SeqPFChain(buffer, 1, path)
 end
 
 function report_step!(results::SeqPFChain,
@@ -117,17 +116,29 @@ function report_step!(results::SeqPFChain,
                       query::Query,
                       idx::Int)
     n = length(results.buffer)
-    results.buffer[results.buffer_idx] = state
+    buffer = results.buffer
+    buffer[results.buffer_idx] = (n == 1) ? state : deepcopy(state)
+    # results.current_buffer[results.buffer_idx] = state
 
+    # write buffer to disk
     if (results.buffer_idx == n)
-        record_state!(results)
-        buffer = Vector{Gen.ParticleFilterState}(undef, n)
-        results.buffer = buffer
+        start = idx - n + 1
+        if !isnothing(results.path)
+            jldopen(results.path, "a+") do file
+                for (i,j) = enumerate(start:idx)
+                    # println("$i $j")
+                    file["state/$j"] = buffer[i]
+                end
+            end
+        end
+        buffer_type = Gen.ParticleFilterState
+        buffer = Vector{buffer_type}(undef, n)
         results.buffer_idx = 1
     else
+        # increment
         results.buffer_idx += 1
     end
-    results.state_idx += 1
+    results.buffer = buffer
     return nothing
 end
 
