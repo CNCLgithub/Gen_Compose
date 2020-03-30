@@ -1,37 +1,21 @@
+export static_monte_carlo,
+    StaticChain
 
-mutable struct StaticTraceResult <: InferenceChain
-    latents::T where T<:AbstractVector
-    estimates::E where E<:AbstractArray{Float64}
-    log_score::Array{Float64,2}
-    StaticTraceResult(latents, dims) = new(latents,
-                                           Array{Float64}(undef, dims...),
-                                           Array{Float64}(undef, dims[1:2]...))
-end
+abstract type StaticChain <: InferenceChain end
 
-
-
-function initialize_results(proc::InferenceProcedure,
-                            query::StaticQuery,
-                            iterations::Int)
-    inner = initialize_results(query)
-    outer = initialize_results(proc)
-    dims = (iterations, outer..., inner...)
-    return StaticTraceResult(query.latents, dims)
-end
 
 function static_monte_carlo(procedure::InferenceProcedure,
-                            query::StaticQuery,
-                            iterations::Int)
+                            query::StaticQuery;
+                            path::Union{String, Nothing} = nothing)
     # Initialized data structures that hold inference traces
-    results = initialize_results(procedure, query, iterations)
+    results = initialize_results(procedure, query, path = path)
     state = initialize_procedure(procedure, query)
-    report_step!(results, state, 1)
+    # report_step!(results, state, 1)
 
-    for it in 2:iterations
+    for it in 1:procedure.samples
         mc_step!(state, procedure, query)
-        report_step!(results, state, it)
+        report_step!(results, state, query, it)
     end
     return results
 end
 
-export static_monte_carlo

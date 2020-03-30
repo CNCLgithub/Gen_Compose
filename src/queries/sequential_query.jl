@@ -23,7 +23,7 @@ Defines a singule target distribution
 """
 struct SequentialQuery <: Query
     # A list of selections describing the latents to infer
-    latents::Dict{Symbol, Function}
+    latents::LatentMap
     # The forward function
     forward_function::T where T<:Gen.GenerativeFunction
     initial_args::Tuple
@@ -31,8 +31,6 @@ struct SequentialQuery <: Query
     args::Vector{Tuple}
     # A numerical structure that contains the observation(s)
     observations::Vector{Gen.ChoiceMap}
-    # SequentialQuery(latents, forward_function, args, obs) =
-    #     new(latents, forward_function, args, create_seq_obs(obs))
 end;
 
 initial_args(q::SequentialQuery) = q.initial_args
@@ -55,8 +53,7 @@ function Base.iterate(q::SequentialQuery, state::Int = 1)
         # TODO: refine argument indexing
         obs = q.observations[state]
         args = q.args[state]
-        latents = [m(state) for (_,m) in q.latents]
-        (StaticQuery(latents, q.forward_function, args, obs),
+        (StaticQuery(q.latents, q.forward_function, args, obs),
          state + 1)
     end
 end
