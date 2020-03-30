@@ -1,3 +1,6 @@
+using FileIO
+using JLD2
+using Base.Filesystem
 
 "Computes a posterior query"
 abstract type InferenceProcedure end

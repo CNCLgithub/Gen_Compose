@@ -35,6 +35,7 @@ export Query
 # export likelihood
 # export sample
 
+include("latent_map.jl")
 include("static_query.jl")
 include("sequential_query.jl")
 # include("factorized_query.jl")

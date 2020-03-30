@@ -17,7 +17,7 @@ Defines a singule target distribution
 """
 struct StaticQuery <: Query
     # A collection of latents in the left hand of the posterior
-    latents::Vector{Any}
+    latents::LatentMap
     # The forward function
     forward_function::T where T<:Gen.GenerativeFunction
     args::T where T<:Tuple
@@ -27,14 +27,18 @@ struct StaticQuery <: Query
                                                  # create_obs_choicemap(obs))
 end
 
-# TODO: Implement infinite iterable
-
 initialize_results(q::StaticQuery) = length(q.latents)
 
-function observation_address(q::StaticQuery)
-    (addr, _) = first(Gen.get_values_shallow(q.observations))
-    return addr
+function parse_trace(q::StaticQuery, trace::Gen.Trace)
+    q.latents(trace)
 end
+
+# function observation_address(q::StaticQuery)
+#     (addr, _) = first(Gen.get_values_shallow(q.observations))
+#     return addr
+# end
+
+
 
 # """
 #    sample(q::InferenceQuery{L,C,O})

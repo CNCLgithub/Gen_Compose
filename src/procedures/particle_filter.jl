@@ -1,17 +1,12 @@
 export AbstractParticleFitler,
     ParticleFilter
 
-using Base.Filesystem
-import Distributions
-
 abstract type AbstractParticleFilter <: InferenceProcedure end
 struct ParticleFilter <: AbstractParticleFilter
     particles::U where U<:Int
     ess::Float64
     rejuvination::T where T<:Function
 end
-
-
 
 function rejuvinate!(proc::AbstractParticleFilter,
                      state::Gen.ParticleFilterState)
@@ -35,7 +30,6 @@ function initialize_procedure(proc::AbstractParticleFilter,
                                            query.args,
                                            query.observations,
                                            proc.particles)
-    # rejuvinate!(proc, state)
     return state
 end
 
@@ -98,47 +92,59 @@ mutable struct SeqPFChain <: SequentialChain
     path::Union{String, Nothing}
 end
 
-get_state_type(p::AbstractParticleFilter) = Gen.ParticleFilterState
+function update_chain!(c::SeqPFChain, trace)
+    c.buffer[c.buffer_idx] = trace
+    return nothing
+end
 
 function initialize_results(proc::AbstractParticleFilter,
                             query::SequentialQuery;
                             path::Union{String, Nothing} = nothing,
                             buffer_size::Int = 40)
 
-    buffer_type = get_state_type(proc)
-    buffer = Vector{buffer_type}(undef, buffer_size)
+    buffer = Vector{Dict}(undef, buffer_size)
     isnothing(path) || isfile(path) && rm(path)
     return SeqPFChain(buffer, 1, path)
 end
 
-function report_step!(results::SeqPFChain,
+function report_step!(chain::SeqPFChain,
                       state::Gen.ParticleFilterState,
                       query::Query,
                       idx::Int)
-    n = length(results.buffer)
-    buffer = results.buffer
-    buffer[results.buffer_idx] = (n == 1) ? state : deepcopy(state)
-    # results.current_buffer[results.buffer_idx] = state
+    traces = get_traces(state)
+    n = length(traces)
+    w_traces = Gen.get_traces(state)
+    uw_traces = Gen.sample_unweighted_traces(state, n)
 
+    weighted = map(t -> parse_trace(query, t), w_traces)
+    unweighted = map(t -> parse_trace(query, t), uw_traces)
+    step_parse = Dict(
+        "weighted" => merge(hcat, weighted...),
+        "unweighted" => merge(hcat, unweighted...),
+        "log_scores" => reshape(get_log_weights(state), (1, n)),
+        "unweighted_scores" => map(get_score, uw_traces),
+        "ml_est" => log_ml_estimate(state)
+    )
+
+    buffer = chain.buffer
+    buffer[chain.buffer_idx] = step_parse
     # write buffer to disk
-    if (results.buffer_idx == n)
+    if (chain.buffer_idx == length(chain.buffer))
         start = idx - n + 1
-        if !isnothing(results.path)
-            jldopen(results.path, "a+") do file
+        if !isnothing(chain.path)
+            jldopen(chain.path, "a+") do file
                 for (i,j) = enumerate(start:idx)
-                    # println("$i $j")
-                    file["state/$j"] = buffer[i]
+                    file["state/$j"] = chain.buffer[i]
                 end
             end
         end
-        buffer_type = Gen.ParticleFilterState
-        buffer = Vector{buffer_type}(undef, n)
-        results.buffer_idx = 1
+        buffer = Vector{Dict}(undef, length(chain.buffer))
+        chain.buffer_idx = 1
     else
         # increment
-        results.buffer_idx += 1
+        chain.buffer_idx += 1
     end
-    results.buffer = buffer
+    chain.buffer = buffer
     return nothing
 end
 
