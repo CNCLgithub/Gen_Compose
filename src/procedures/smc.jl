@@ -22,7 +22,28 @@ function sequential_monte_carlo(procedure::InferenceProcedure,
     targets = collect(query)
     for (it, target) in enumerate(targets)
         aux_state = smc_step!(state, procedure, target)
-        report_step!(results, state, target, it)
+        report_step!(results, state, query, it)
+        # report_aux!(results, aux_state, query, it)
+    end
+    return results
+end
+
+function sequential_monte_carlo(procedure::InferenceProcedure,
+                                query::SequentialQuery,
+                                rid::Int,
+                                choices::Dict;
+                                path::Union{String, Nothing} = nothing)
+    # Initialized data structures that hold inference traces
+    results = initialize_results(procedure, query, rid;
+                                 path = path)
+
+    # Initialize inference state
+    state = resume_procedure(procedure, query, rid, choices)
+    # Iterate across target distributions define in query
+    for it = rid:length(query)
+        target = query[it]
+        aux_state = smc_step!(state, procedure, target)
+        report_step!(results, state, query, it)
         # report_aux!(results, aux_state, query, it)
     end
     return results

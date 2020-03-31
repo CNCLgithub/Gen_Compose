@@ -92,10 +92,7 @@ mutable struct SeqPFChain <: SequentialChain
     path::Union{String, Nothing}
 end
 
-function update_chain!(c::SeqPFChain, trace)
-    c.buffer[c.buffer_idx] = trace
-    return nothing
-end
+isfull(c::SeqPFChain) = c.buffer_idx == length(c.buffer)
 
 function initialize_results(proc::AbstractParticleFilter,
                             query::SequentialQuery;
@@ -106,6 +103,16 @@ function initialize_results(proc::AbstractParticleFilter,
     isnothing(path) || isfile(path) && rm(path)
     return SeqPFChain(buffer, 1, path)
 end
+function initialize_results(proc::AbstractParticleFilter,
+                            query::SequentialQuery,
+                            resume::Int;
+                            path::Union{String, Nothing} = nothing,
+                            buffer_size::Int = 40)
+
+    buffer = Vector{Dict}(undef, buffer_size)
+    return SeqPFChain(buffer, 1, path)
+end
+
 
 function report_step!(chain::SeqPFChain,
                       state::Gen.ParticleFilterState,
@@ -129,8 +136,10 @@ function report_step!(chain::SeqPFChain,
     buffer = chain.buffer
     buffer[chain.buffer_idx] = step_parse
     # write buffer to disk
-    if (chain.buffer_idx == length(chain.buffer))
-        start = idx - length(chain.buffer) + 1
+    isfinished = (idx == length(query))
+    if isfull(chain) || isfinished
+        println("writing at step $idx")
+        start = idx - chain.buffer_idx + 1
         if !isnothing(chain.path)
             jldopen(chain.path, "a+") do file
                 for (i,j) = enumerate(start:idx)
@@ -148,11 +157,34 @@ function report_step!(chain::SeqPFChain,
     return nothing
 end
 
-function report_aux!(results::SeqPFChain,
-                     aux_state,
-                     query::Query,
-                     idx::Int)
-    key = "aux_state/$idx"
-    record_state(results, key, aux_state)
-    return nothing
+function resume_procedure(proc::AbstractParticleFilter,
+                          query::SequentialQuery,
+                          rid::Int,
+                          choices::Dict)
+    (rid < 1) && error("Resume index must be > 1")
+    prev_target_dis = query[rid-1]
+    obs = prev_target_dis.observations
+    args = prev_target_dis.args
+    state = initialize_procedure(proc, query)
+    for i=1:proc.particles
+        constraints = deepcopy(obs)
+        for (k,v) in choices
+            constraints[k] = v[i]
+            println("$k => $(v[i])")
+        end
+        (state.new_traces[i], increment, _, discard) = update(
+            state.traces[i], args, (UnknownChange(),), constraints)
+        # if !isempty(discard)
+        #     error("Choices were updated or deleted inside particle filter step: $discard")
+        # end
+        state.log_weights[i] += increment
+    end
+
+    # swap references
+    tmp = state.traces
+    state.traces = state.new_traces
+    state.new_traces = tmp
+
+    return state
+
 end

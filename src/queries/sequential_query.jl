@@ -1,6 +1,5 @@
 export SequentialQuery,
-    initialize_results,
-    observation_address
+    initialize_results
 
 function _create_seq_obs(addr, obs::T where T<:AbstractVector)
     c = Gen.choicemap()
@@ -41,21 +40,22 @@ function Base.length(q::SequentialQuery)
     min(length(q.observations), length(q.args))
 end
 
-function observation_address(q::SequentialQuery)
-    (addr, _) = first(Gen.get_values_shallow(q.observations))
-    return addr
-end
-
 function Base.iterate(q::SequentialQuery, state::Int = 1)
     if state > length(q)
         return nothing
     else
         # TODO: refine argument indexing
-        obs = q.observations[state]
-        args = q.args[state]
-        (StaticQuery(q.latents, q.forward_function, args, obs),
-         state + 1)
+        (q[state], state + 1)
     end
 end
 
 Base.eltype(::Type{SequentialQuery}) = StaticQuery
+
+function Base.getindex(q::SequentialQuery, i::Int)
+    1 <= i <= length(q) || throw(BoundsError(q, i))
+    obs = q.observations[i]
+    args = q.args[i]
+    StaticQuery(q.latents, q.forward_function, args, obs)
+end
+
+latents(q::SequentialQuery) = q.latents
