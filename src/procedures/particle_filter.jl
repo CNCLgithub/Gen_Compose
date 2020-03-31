@@ -130,7 +130,7 @@ function report_step!(chain::SeqPFChain,
     buffer[chain.buffer_idx] = step_parse
     # write buffer to disk
     if (chain.buffer_idx == length(chain.buffer))
-        start = idx - n + 1
+        start = idx - length(chain.buffer) + 1
         if !isnothing(chain.path)
             jldopen(chain.path, "a+") do file
                 for (i,j) = enumerate(start:idx)
