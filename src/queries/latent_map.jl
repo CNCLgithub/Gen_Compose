@@ -23,3 +23,8 @@ function (lm::LatentMap)(t::Gen.Trace)
     end
     return d
 end
+
+function parse_trace(q::Query, trace::Gen.Trace)
+    lm = latents(q)
+    lm(trace)
+end

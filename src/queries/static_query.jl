@@ -29,10 +29,7 @@ end
 
 initialize_results(q::StaticQuery) = length(q.latents)
 
-function parse_trace(q::StaticQuery, trace::Gen.Trace)
-    q.latents(trace)
-end
-
+latents(q::StaticQuery) = q.latents
 # function observation_address(q::StaticQuery)
 #     (addr, _) = first(Gen.get_values_shallow(q.observations))
 #     return addr
