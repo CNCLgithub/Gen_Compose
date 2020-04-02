@@ -147,7 +147,7 @@ function report_step!(chain::SeqPFChain,
                 end
             end
         end
-        buffer = Vector{Dict}(undef, length(chain.buffer))
+        buffer = isfinished ? buffer : Vector{Dict}(undef, length(chain.buffer))
         chain.buffer_idx = 1
     else
         # increment
