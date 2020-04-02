@@ -12,9 +12,11 @@ end
 
 function sequential_monte_carlo(procedure::InferenceProcedure,
                                 query::SequentialQuery;
-                                path::Union{String, Nothing} = nothing)
+                                path::Union{String, Nothing} = nothing,
+                                buffer_size::Int = 40)
     # Initialized data structures that hold inference traces
-    results = initialize_results(procedure, query, path = path)
+    results = initialize_results(procedure, query, path = path,
+                                 buffer_size = buffer_size)
 
     # Initialize inference state
     state = initialize_procedure(procedure, query)
@@ -32,10 +34,10 @@ function sequential_monte_carlo(procedure::InferenceProcedure,
                                 query::SequentialQuery,
                                 rid::Int,
                                 choices::Dict;
-                                path::Union{String, Nothing} = nothing)
+                                path::Union{String, Nothing} = nothing,
+                                buffer_size::Int = 40)
     # Initialized data structures that hold inference traces
     results = initialize_results(procedure, query, rid;
-                                 path = path)
 
     # Initialize inference state
     state = resume_procedure(procedure, query, rid, choices)
