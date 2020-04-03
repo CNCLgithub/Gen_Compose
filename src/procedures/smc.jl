@@ -37,7 +37,8 @@ function sequential_monte_carlo(procedure::InferenceProcedure,
                                 path::Union{String, Nothing} = nothing,
                                 buffer_size::Int = 40)
     # Initialized data structures that hold inference traces
-    results = initialize_results(procedure, query, rid;
+    results = initialize_results(procedure, query, rid,
+                                 buffer_size = buffer_size)
 
     # Initialize inference state
     state = resume_procedure(procedure, query, rid, choices)
