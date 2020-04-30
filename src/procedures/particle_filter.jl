@@ -5,14 +5,14 @@ abstract type AbstractParticleFilter <: InferenceProcedure end
 struct ParticleFilter <: AbstractParticleFilter
     particles::U where U<:Int
     ess::Float64
-    rejuvination::T where T<:Function
+    rejuvenation::T where T<:Function
 end
 
-function rejuvinate!(proc::AbstractParticleFilter,
+function rejuvenate!(proc::AbstractParticleFilter,
                      state::Gen.ParticleFilterState)
-    # add rejuvination
+    # add rejuvenation
     for p=1:proc.particles
-        state.traces[p] = proc.rejuvination(state.traces[p])
+        state.traces[p] = proc.rejuvenation(state.traces[p])
     end
 end
 
@@ -51,7 +51,7 @@ function mc_step!(state::Gen.ParticleFilterState,
     resample!(proc, state)
     # update the state of the particles
     static_particle_filter_step!(state, query)
-    rejuvinate!(proc, state)
+    rejuvenate!(proc, state)
     return nothing
 end
 
@@ -81,7 +81,7 @@ function smc_step!(state::Gen.ParticleFilterState,
     Gen.particle_filter_step!(state, query.args,
                               (UnknownChange(),),
                               query.observations)
-    rejuvinate!(proc, state)
+    rejuvenate!(proc, state)
     return nothing
 end
 
