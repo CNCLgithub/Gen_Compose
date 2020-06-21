@@ -24,7 +24,6 @@ function initialize_results end
 
 function report_step! end
 
-
 export InferenceProcedure
 export initialize_procedure
 export step_procedure

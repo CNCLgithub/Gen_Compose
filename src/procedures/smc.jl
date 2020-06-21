@@ -20,12 +20,13 @@ function sequential_monte_carlo(procedure::InferenceProcedure,
 
     # Initialize inference state
     state = initialize_procedure(procedure, query)
+
     # Iterate across target distributions define in query
     targets = collect(query)
     for (it, target) in enumerate(targets)
         aux_state = smc_step!(state, procedure, target)
-        report_step!(results, state, query, it)
-        # report_aux!(results, aux_state, query, it)
+        report_step!(results, state, aux_state, query, it)
+        #report_aux!(results, aux_state, query, it)
     end
     return results
 end
@@ -46,8 +47,8 @@ function sequential_monte_carlo(procedure::InferenceProcedure,
     for it = rid:length(query)
         target = query[it]
         aux_state = smc_step!(state, procedure, target)
-        report_step!(results, state, query, it)
-        # report_aux!(results, aux_state, query, it)
+        report_step!(results, state, aux_state, query, it)
+        #report_aux!(results, aux_state, query, it)
     end
     return results
 end
