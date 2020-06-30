@@ -116,6 +116,7 @@ end
 
 function report_step!(chain::SeqPFChain,
                       state::Gen.ParticleFilterState,
+                      aux_state::Any,
                       query::Query,
                       idx::Int)
     traces = get_traces(state)
@@ -130,11 +131,13 @@ function report_step!(chain::SeqPFChain,
         "unweighted" => merge(hcat, unweighted...),
         "log_scores" => reshape(get_log_weights(state), (1, n)),
         "unweighted_scores" => map(get_score, uw_traces),
-        "ml_est" => log_ml_estimate(state)
+        "ml_est" => log_ml_estimate(state),
+        "aux_state" => aux_state
     )
 
     buffer = chain.buffer
     buffer[chain.buffer_idx] = step_parse
+
     # write buffer to disk
     isfinished = (idx == length(query))
     if isfull(chain) || isfinished
