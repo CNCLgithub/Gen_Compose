@@ -113,7 +113,6 @@ function initialize_results(proc::AbstractParticleFilter,
     return SeqPFChain(buffer, 1, path)
 end
 
-
 function report_step!(chain::SeqPFChain,
                       state::Gen.ParticleFilterState,
                       aux_state::Any,
@@ -146,7 +145,7 @@ function report_step!(chain::SeqPFChain,
         if !isnothing(chain.path)
             jldopen(chain.path, "a+") do file
                 for (i,j) = enumerate(start:idx)
-                    file["state/$j"] = chain.buffer[i]
+                    file["$j"] = chain.buffer[i]
                 end
             end
         end
