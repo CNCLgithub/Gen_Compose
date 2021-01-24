@@ -125,6 +125,7 @@ function report_step!(chain::SeqPFChain,
 
     weighted = map(t -> parse_trace(query, t), w_traces)
     unweighted = map(t -> parse_trace(query, t), uw_traces)
+
     step_parse = Dict(
         "weighted" => merge(hcat, weighted...),
         "unweighted" => merge(hcat, unweighted...),
@@ -134,11 +135,16 @@ function report_step!(chain::SeqPFChain,
         "aux_state" => aux_state
     )
 
+    # if finished, saving traces too
+    isfinished = (idx == length(query))
+    if isfinished
+        step_parse["traces"] = state.traces
+    end
+
     buffer = chain.buffer
     buffer[chain.buffer_idx] = step_parse
 
     # write buffer to disk
-    isfinished = (idx == length(query))
     if isfull(chain) || isfinished
         println("writing at step $idx")
         start = idx - chain.buffer_idx + 1
@@ -155,6 +161,7 @@ function report_step!(chain::SeqPFChain,
         # increment
         chain.buffer_idx += 1
     end
+
     chain.buffer = buffer
     return nothing
 end
