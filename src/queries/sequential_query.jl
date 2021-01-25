@@ -23,6 +23,8 @@ Defines a singule target distribution
 struct SequentialQuery <: Query
     # A list of selections describing the latents to infer
     latents::LatentMap
+    # Latents at the the last step
+    latents_end::LatentMap
     # The forward function
     forward_function::T where T<:Gen.GenerativeFunction
     initial_args::Tuple
@@ -59,3 +61,4 @@ function Base.getindex(q::SequentialQuery, i::Int)
 end
 
 latents(q::SequentialQuery) = q.latents
+latents_end(q::SequentialQuery) = q.latents_end

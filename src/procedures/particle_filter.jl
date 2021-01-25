@@ -123,8 +123,12 @@ function report_step!(chain::SeqPFChain,
     w_traces = Gen.get_traces(state)
     uw_traces = Gen.sample_unweighted_traces(state, n)
 
-    weighted = map(t -> parse_trace(query, t), w_traces)
-    unweighted = map(t -> parse_trace(query, t), uw_traces)
+    # if finished, adding latents_end from the query
+    isfinished = (idx == length(query))
+    parse = isfinished ? parse_trace_end : parse_trace
+
+    weighted = map(t -> parse(query, t), w_traces)
+    unweighted = map(t -> parse(query, t), uw_traces)
 
     step_parse = Dict(
         "weighted" => merge(hcat, weighted...),
@@ -134,12 +138,6 @@ function report_step!(chain::SeqPFChain,
         "ml_est" => log_ml_estimate(state),
         "aux_state" => aux_state
     )
-
-    # if finished, saving traces too
-    isfinished = (idx == length(query))
-    if isfinished
-        step_parse["traces"] = state.traces
-    end
 
     buffer = chain.buffer
     buffer[chain.buffer_idx] = step_parse
