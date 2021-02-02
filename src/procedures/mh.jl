@@ -1,15 +1,35 @@
-export MetropolisHastings
+export MCMC, MCMCTrace, MetropolisHastings, MHTrace
 
-struct MetropolisHastings <: InferenceProcedure
+abstract type MCMC <: InferenceProcedure end
+
+abstract type MCMCTrace end
+
+"""
+Simple definition of MH procedure
+"""
+struct MetropolisHastings <: MCMC
     samples::Int
     update::T where T<:Function
 end
 
-mutable struct MHTrace
+# TODO: consider consolidating all chains to common api
+mutable struct StaticMHChain <: StaticChain
+    buffer::Vector{T} where {T}
+    buffer_idx::Int
+    path::Union{String, Nothing}
+end
+isfull(c::StaticMHChain) = c.buffer_idx == length(c.buffer)
+
+"""
+Describes state of trace for MH
+"""
+mutable struct MHTrace <: MCMCTrace
     current_trace
 end
 
-function initialize_procedure(proc::MetropolisHastings,
+
+
+function initialize_procedure(proc::MCMC,
                               query::StaticQuery)
     trace,_ = Gen.generate(query.forward_function,
                            query.args,
@@ -18,21 +38,15 @@ function initialize_procedure(proc::MetropolisHastings,
 end
 
 function mc_step!(state::MHTrace,
-                  proc::MetropolisHastings,
+                  proc::MCMC,
                   query::StaticQuery)
 
     state.current_trace = proc.update(state.current_trace)
     return nothing
 end
 
-mutable struct StaticMHChain <: StaticChain
-    buffer::Vector{Dict}
-    buffer_idx::Int
-    path::Union{String, Nothing}
-end
 
-
-function initialize_results(proc::MetropolisHastings,
+function initialize_results(proc::MCMC,
                             query::StaticQuery;
                             path::Union{String, Nothing} = nothing,
                             buffer_size::Int = 500)
@@ -42,35 +56,42 @@ function initialize_results(proc::MetropolisHastings,
     return StaticMHChain(buffer, 1, path)
 end
 
-function update_chain!(c::StaticMHChain, trace)
-    c.buffer[c.buffer_idx] = trace
-    return nothing
-end
+# function update_chain!(c::StaticMHChain, trace)
+#     c.buffer[c.buffer_idx] = trace
+#     return nothing
+# end
 
 
 function report_step!(chain::StaticMHChain,
-                      state::MHTrace,
+                      state::MCMCTrace,
+                      aux_state::Any,
                       query::StaticQuery,
                       idx::Int)
     parsed = parse_trace(query, state.current_trace)
     step_parse = Dict(
         "estimates" => parsed,
-        "log_score" => get_score(state.current_trace)
+        "log_score" => get_score(state.current_trace),
+        "aux_state" => aux_state
     )
-    n = length(chain.buffer)
+
+    # write buffer to disk
     buffer = chain.buffer
     buffer[chain.buffer_idx] = step_parse
-    # write buffer to disk
-    if (chain.buffer_idx == n)
-        start = idx - n + 1
+    # TODO allow this logic for static mh
+    # isfinished = (idx == length(query))
+    isfinished = true
+    # if isfull(chain) || isfinished
+    if isfull(chain)
+        println("writing at step $idx")
+        start = idx - chain.buffer_idx + 1
         if !isnothing(chain.path)
             jldopen(chain.path, "a+") do file
                 for (i,j) = enumerate(start:idx)
-                    file["state/$j"] = buffer[i]
+                    file["$j"] = chain.buffer[i]
                 end
             end
         end
-        buffer = Vector{Dict}(undef, n)
+        buffer = isfinished ? buffer : Vector{Dict}(undef, length(chain.buffer))
         chain.buffer_idx = 1
     else
         # increment
