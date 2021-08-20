@@ -2,10 +2,12 @@
 Defines the types used through the inference library
 """
 module Gen_Compose
-using Gen
 
-# Random Variables
-include("random_variables/random_variables.jl")
+using Gen
+using UnPack
+
+# Inference chain
+include("chain.jl")
 
 # Queries
 include("queries/inference_query.jl")
@@ -14,7 +16,6 @@ include("queries/inference_query.jl")
 include("procedures/procedure.jl")
 
 # Misc
-# include("perturbations/perturb.jl")
 # include("analysis/analysis.jl")
 
 
