@@ -2,46 +2,31 @@ export AbstractParticleFitler,
     ParticleFilter
 
 abstract type AbstractParticleFilter <: InferenceProcedure end
+
 struct ParticleFilter <: AbstractParticleFilter
     particles::U where U<:Int
     ess::Float64
     rejuvenation::T where T<:Function
 end
 
-function rejuvenate!(proc::AbstractParticleFilter,
-                     state::Gen.ParticleFilterState)
-    # add rejuvenation
-    for p=1:proc.particles
-        state.traces[p] = proc.rejuvenation(state.traces[p])
-    end
-end
+#################################################################################
+# Static query support
+#################################################################################
 
-function resample!(proc::AbstractParticleFilter,
-                   state::Gen.ParticleFilterState,
-                   verbose=false)
-    # Resample depending on ess
-    Gen.maybe_resample!(state, ess_threshold=proc.ess, verbose=verbose)
-    return nothing
+function initialize_chain(proc::AbstractParticleFilter,
+                          query::StaticQuery,
+                          path::Union{String, Nothing},
+                          buffer_size::Int64)
+    state = initialize_procedure(proc, query)
+    error("Not implemented (yet)")
 end
 
 function initialize_procedure(proc::AbstractParticleFilter,
                               query::StaticQuery)
-    state = Gen.initialize_particle_filter(query.forward_function,
-                                           query.args,
-                                           query.observations,
-                                           proc.particles)
-    return state
-end
-
-function initialize_procedure(proc::AbstractParticleFilter,
-                              query::SequentialQuery)
-    args = initial_args(query)
-    constraints = initial_constraints(query)
-    state = Gen.initialize_particle_filter(query.forward_function,
-                                           args,
-                                           constraints,
-                                           proc.particles)
-    return state
+    Gen.initialize_particle_filter(query.forward_function,
+                                   query.args,
+                                   query.observations,
+                                   proc.particles)
 end
 
 function mc_step!(state::Gen.ParticleFilterState,
@@ -72,121 +57,94 @@ function static_particle_filter_step!(state::Gen.ParticleFilterState,
     return nothing
 end
 
-function smc_step!(state::Gen.ParticleFilterState,
-                   proc::AbstractParticleFilter,
-                   query::StaticQuery)
-    # Resample before moving on...
-    resample!(proc, state)
-    # update the state of the particles
-    Gen.particle_filter_step!(state, query.args,
-                              (UnknownChange(),),
-                              query.observations)
-    rejuvenate!(proc, state)
-    return nothing
-end
-
+#################################################################################
+# Sequential query support
+#################################################################################
 
 mutable struct SeqPFChain <: SequentialChain
-    buffer::Vector{T} where {T}
-    buffer_idx::Int
-    path::Union{String, Nothing}
+    query::SequentialQuery
+    proc::AbstractParticleFilter
+    state::Gen.ParticleFilterState
+    auxillary::AuxillaryState
 end
 
-isfull(c::SeqPFChain) = c.buffer_idx == length(c.buffer)
-
-function initialize_results(proc::AbstractParticleFilter,
-                            query::SequentialQuery;
-                            path::Union{String, Nothing} = nothing,
-                            buffer_size::Int = 40)
-
-    buffer = Vector{Dict}(undef, buffer_size)
-    isnothing(path) || isfile(path) && rm(path)
-    return SeqPFChain(buffer, 1, path)
-end
-function initialize_results(proc::AbstractParticleFilter,
-                            query::SequentialQuery,
-                            resume::Int;
-                            path::Union{String, Nothing} = nothing,
-                            buffer_size::Int = 40)
-
-    buffer = Vector{Dict}(undef, buffer_size)
-    return SeqPFChain(buffer, 1, path)
+function initialize_chain(proc::AbstractParticleFilter,
+                          query::SequentialQuery)
+    state = initialize_procedure(proc, query)
+    aux = EmptyAuxState()
+    return SeqPFChain(query, proc, state, aux)
 end
 
-function report_step!(chain::SeqPFChain,
-                      state::Gen.ParticleFilterState,
-                      aux_state::Any,
-                      query::Query,
-                      idx::Int)
-    traces = get_traces(state)
-    n = length(traces)
-    w_traces = Gen.get_traces(state)
-    uw_traces = Gen.sample_unweighted_traces(state, n)
+function initialize_procedure(proc::AbstractParticleFilter,
+                              query::SequentialQuery)
+    args = initial_args(query)
+    constraints = initial_constraints(query)
+    state = Gen.initialize_particle_filter(query.forward_function,
+                                           args,
+                                           constraints,
+                                           proc.particles)
+    return state
+end
 
-    weighted = map(t -> parse_trace(query, t), w_traces)
-    unweighted = map(t -> parse_trace(query, t), uw_traces)
-    step_parse = Dict(
-        "weighted" => merge(hcat, weighted...),
-        "unweighted" => merge(hcat, unweighted...),
-        "log_scores" => reshape(get_log_weights(state), (1, n)),
-        "unweighted_scores" => map(get_score, uw_traces),
-        "ml_est" => log_ml_estimate(state),
-        "aux_state" => aux_state
-    )
-
-    buffer = chain.buffer
-    buffer[chain.buffer_idx] = step_parse
-
-    # write buffer to disk
-    isfinished = (idx == length(query))
-    if isfull(chain) || isfinished
-        println("writing at step $idx")
-        start = idx - chain.buffer_idx + 1
-        if !isnothing(chain.path)
-            jldopen(chain.path, "a+") do file
-                for (i,j) = enumerate(start:idx)
-                    file["$j"] = chain.buffer[i]
-                end
-            end
-        end
-        buffer = isfinished ? buffer : Vector{Dict}(undef, length(chain.buffer))
-        chain.buffer_idx = 1
-    else
-        # increment
-        chain.buffer_idx += 1
+function rejuvenate!(chain::SeqPFChain,
+                     proc::ParticleFilter)
+    @unpack particles, rejuvination = proc
+    for p=1:particles
+        state.traces[p] = rejuvenation(state.traces[p])
     end
-    chain.buffer = buffer
+end
+
+function smc_step!(chain::SeqPFChain, i::Int64)
+    @unpack proc, query = chain
+    squery = query[i]
+    smc_step!(chain, proc, squery)
     return nothing
 end
 
-function resume_procedure(proc::AbstractParticleFilter,
-                          query::SequentialQuery,
-                          rid::Int,
-                          choices::Dict)
-    (rid < 1) && error("Resume index must be > 1")
-    prev_target_dis = query[rid-1]
-    obs = prev_target_dis.observations
-    args = prev_target_dis.args
-    state = initialize_procedure(proc, query)
-    for i=1:proc.particles
-        constraints = deepcopy(obs)
-        for (k,v) in choices
-            constraints[k] = v[i]
-            println("$k => $(v[i])")
+function smc_step!(chain::SeqPFChain, proc::AbstractParticleFilter,
+                   query::StaticQuery)
+    @unpack state = chain
+    @unpack args, observations = query
+    # Resample before moving on...
+    Gen.maybe_resample!(state, ess_threshold=proc.ess)
+    # update the state of the particles
+    argdiffs = (UnknownChange(), )
+    println("taking step")
+    @time Gen.particle_filter_step!(state, args, argdiffs,
+                              observations)
+    rejuvenate!(chain, proc)
+    return nothing
+end
+
+function report_step!(buffer::CircularDeque{ChainDigest},
+                      chain::SeqPFChain,
+                      idx::Int,
+                      path::Union{Nothing, String})
+
+    @unpack query, state, auxillary = chain
+
+    println("adding chain to buffer")
+    @time push!(buffer, digest(query, chain))
+
+    buffer_idx = length(buffer)
+    # write buffer to disk
+    isfull = capacity(buffer) == buffer_idx
+    isfinished = (idx == length(query))
+    if isfull || isfinished
+        println("writing at step $idx")
+        start = idx - buffer_idx + 1
+        # no path to save, exit
+        isnothing(path) || jldopen(path, "a+") do file
+            # save current chain
+            haskey(file, "current_chain") && delete!(file, "current_chain")
+            file["current_chain"] = chain
+            haskey(file, "current_idx") && delete!(file, "current_idx")
+            file["current_idx"] = idx
+            # save digest buffer
+            for j = start:idx
+                file["$j"] = popfirst!(buffer)
+            end
         end
-        (state.new_traces[i], increment, _, discard) = update(
-            state.traces[i], args, (UnknownChange(),), constraints)
-        # if !isempty(discard)
-        #     error("Choices were updated or deleted inside particle filter step: $discard")
-        # end
-        state.log_weights[i] += increment
     end
-
-    # swap references
-    tmp = state.traces
-    state.traces = state.new_traces
-    state.new_traces = tmp
-
-    return state
-
+    return nothing
 end

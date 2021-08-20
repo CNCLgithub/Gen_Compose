@@ -1,54 +1,38 @@
 export sequential_monte_carlo,
+    sequential_monte_carlo!,
+    resume_chain,
     SequentialChain
 
 
 abstract type SequentialChain <: InferenceChain end
 
 
-
-function resume_inference(path::String)
-    error("not implemented")
-end
-
-function sequential_monte_carlo(procedure::InferenceProcedure,
-                                query::SequentialQuery;
-                                path::Union{String, Nothing} = nothing,
-                                buffer_size::Int = 40)
-    # Initialized data structures that hold inference traces
-    results = initialize_results(procedure, query, path = path,
-                                 buffer_size = buffer_size)
-
-    # Initialize inference state
-    state = initialize_procedure(procedure, query)
-
-    # Iterate across target distributions define in query
-    targets = collect(query)
-    for (it, target) in enumerate(targets)
-        aux_state = smc_step!(state, procedure, target)
-        report_step!(results, state, aux_state, query, it)
-        #report_aux!(results, aux_state, query, it)
-    end
-    return results
-end
-
 function sequential_monte_carlo(procedure::InferenceProcedure,
                                 query::SequentialQuery,
-                                rid::Int,
-                                choices::Dict;
-                                path::Union{String, Nothing} = nothing,
-                                buffer_size::Int = 40)
+                                path::Union{Nothing, String},
+                                buffer_size::Int64)
     # Initialized data structures that hold inference traces
-    results = initialize_results(procedure, query, rid,
-                                 buffer_size = buffer_size)
+    chain = initialize_chain(procedure, query)
+    buffer = CircularDeque{ChainDigest}(buffer_size)
+    sequential_monte_carlo!(chain, 1, buffer, path)
+end
 
-    # Initialize inference state
-    state = resume_procedure(procedure, query, rid, choices)
+function sequential_monte_carlo!(chain::SequentialChain,
+                                 start_idx::Int64,
+                                 buffer::CircularDeque{ChainDigest},
+                                 path::Union{Nothing, String})
+    @unpack query = chain
     # Iterate across target distributions define in query
-    for it = rid:length(query)
-        target = query[it]
-        aux_state = smc_step!(state, procedure, target)
-        report_step!(results, state, aux_state, query, it)
-        #report_aux!(results, aux_state, query, it)
+    for it = start_idx:length(query)
+        smc_step!(chain, it)
+        report_step!(buffer, chain, it, path)
     end
-    return results
+    return chain
+end
+
+function resume_chain(path::String, buffer_size::Int64)
+    @assert isfile(path) "Path $path is not a file"
+    chain, idx = load(path, "current_chain", "current_idx")
+    buffer = CircularDeque{ChainDigest}(buffer_size)
+    sequential_monte_carlo!(chain, idx + 1, buffer, path)
 end
