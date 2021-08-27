@@ -123,15 +123,14 @@ function report_step!(buffer::CircularDeque{ChainDigest},
 
     @unpack query, state, auxillary = chain
 
-    println("adding chain to buffer")
-    @time push!(buffer, digest(query, chain))
+    push!(buffer, digest(query, chain))
 
     buffer_idx = length(buffer)
     # write buffer to disk
     isfull = capacity(buffer) == buffer_idx
     isfinished = (idx == length(query))
     if isfull || isfinished
-        println("writing at step $idx")
+        @debug "writing at step $idx"
         start = idx - buffer_idx + 1
         # no path to save, exit
         isnothing(path) || jldopen(path, "a+") do file
