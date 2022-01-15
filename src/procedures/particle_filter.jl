@@ -89,7 +89,7 @@ end
 function rejuvenate!(chain::SeqPFChain,
                      proc::ParticleFilter)
     @unpack particles, rejuvination = proc
-    for p=1:particles
+    @inbounds for p=1:particles
         state.traces[p] = rejuvenation(state.traces[p])
     end
 end

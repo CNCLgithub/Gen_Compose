@@ -1,20 +1,6 @@
 export SequentialQuery,
+    latents,
     initialize_results
-
-function _create_seq_obs(addr, obs::T where T<:AbstractVector)
-    c = Gen.choicemap()
-    set_value!(c, addr, obs)
-    Gen.StaticChoiceMap(c)
-end
-
-function create_seq_obs(c::T where T<:Gen.ChoiceMap)
-    values = Gen.get_values_shallow(c)
-    if length(values) != 1
-        error("Observation must have one shallow address")
-    end
-    obs_addr, obs_value = first(values)
-    _create_seq_obs(obs_addr, obs_value)
-end
 
 """
 
@@ -32,10 +18,13 @@ struct SequentialQuery <: Query
     observations::Vector{Gen.ChoiceMap}
 end;
 
+latents(q::SequentialQuery) = q.latents
+initialize_results(q::SequentialQuery) = length(q.latents)
 initial_args(q::SequentialQuery) = q.initial_args
 initial_constraints(q::SequentialQuery) = q.initial_constraints
 
-initialize_results(q::SequentialQuery) = length(q.latents)
+# -- Implementing Base.Iterable -- #
+
 function Base.length(q::SequentialQuery)
     min(length(q.observations), length(q.args))
 end
@@ -58,4 +47,3 @@ function Base.getindex(q::SequentialQuery, i::Int)
     StaticQuery(q.latents, q.forward_function, args, obs)
 end
 
-latents(q::SequentialQuery) = q.latents

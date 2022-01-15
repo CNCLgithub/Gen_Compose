@@ -4,8 +4,11 @@ export sequential_monte_carlo,
     SequentialChain
 
 
+"""Defines an inference chain for sequential posteriors"""
 abstract type SequentialChain <: InferenceChain end
 
+"""Applies a given procedure to a sequential query"""
+function sequential_monte_carlo end
 
 function sequential_monte_carlo(procedure::InferenceProcedure,
                                 query::SequentialQuery,
@@ -30,6 +33,7 @@ function sequential_monte_carlo!(chain::SequentialChain,
     return chain
 end
 
+# TODO: generalize and properly dispath between `smc` and `mc`
 function resume_chain(path::String, buffer_size::Int64)
     @assert isfile(path) "Path $path is not a file"
     chain, idx = load(path, "current_chain", "current_idx")

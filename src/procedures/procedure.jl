@@ -3,12 +3,11 @@ using JLD2
 using Base.Filesystem
 using DataStructures
 
-"Computes a posterior query"
+""" Estimates a posterior query """
 abstract type InferenceProcedure end
 
 """
-    state = initialize_procedure(proc::InferenceProcedure,
-                                 query::InferenceQuery{L,C,O})
+
 """
 function initialize_chain end
 

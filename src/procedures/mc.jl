@@ -1,6 +1,7 @@
 export static_monte_carlo,
     StaticChain
 
+"""An inference chain for a static target distribution"""
 abstract type StaticChain <: InferenceChain end
 
 
@@ -19,3 +20,7 @@ function static_monte_carlo(procedure::InferenceProcedure,
     return results
 end
 
+
+# TODO: generalize and properly dispath between `smc` and `mc`
+# function resume_chain(path::String, buffer_size::Int64)
+# end

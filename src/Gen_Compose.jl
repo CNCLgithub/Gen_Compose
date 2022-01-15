@@ -10,7 +10,11 @@ using UnPack
 include("chain.jl")
 
 # Queries
-include("queries/inference_query.jl")
+# Defines:
+#   - Query
+#   - LatentMap
+#   - digest
+include("queries/queries.jl")
 
 # Inference procedures
 include("procedures/procedure.jl")

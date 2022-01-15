@@ -1,11 +1,8 @@
 export InferenceChain,
     AuxillaryState,
-    EmptyAuxState,
-    LatentMap,
-    Digest,
-    digest
+    EmptyAuxState
 
-"""Data defining inference chain"""
+"""Data defining an inference chain"""
 abstract type InferenceChain end
 
 """Auxillary state for procedure"""
