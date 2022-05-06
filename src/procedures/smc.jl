@@ -15,6 +15,7 @@ function sequential_monte_carlo(procedure::InferenceProcedure,
     chain = initialize_chain(procedure, query)
     buffer = CircularDeque{ChainDigest}(buffer_size)
     sequential_monte_carlo!(chain, 1, buffer, path)
+    return chain
 end
 
 function sequential_monte_carlo!(chain::SequentialChain,
@@ -27,7 +28,7 @@ function sequential_monte_carlo!(chain::SequentialChain,
         smc_step!(chain, it)
         report_step!(buffer, chain, it, path)
     end
-    return chain
+    return nothing
 end
 
 function resume_chain(path::String, buffer_size::Int64)
@@ -35,4 +36,5 @@ function resume_chain(path::String, buffer_size::Int64)
     chain, idx = load(path, "current_chain", "current_idx")
     buffer = CircularDeque{ChainDigest}(buffer_size)
     sequential_monte_carlo!(chain, idx + 1, buffer, path)
+    return chain
 end

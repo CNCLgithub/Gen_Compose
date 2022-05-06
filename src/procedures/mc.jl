@@ -8,16 +8,28 @@ function static_monte_carlo(procedure::InferenceProcedure,
                             query::StaticQuery;
                             path::Union{String, Nothing} = nothing,
                             buffer_size::Int = 10)
-    # Initialized data structures that hold inference traces
-    results = initialize_results(procedure, query, path = path,
-                                 buffer_size = buffer_size)
-    state = initialize_procedure(procedure, query)
-    # report_step!(results, state, 1)
-
-    for it in 1:procedure.samples
-        aux_state = mc_step!(state, procedure, query)
-        report_step!(results, state, aux_state, query, it)
-    end
-    return results
+    buffer = CircularDeque{ChainDigest}(buffer_size)
+    chain = initialize_chain(procedure, query)
+    static_monte_carlo!(chain, 1, buffer, path)
+    return chain
 end
 
+function static_monte_carlo!(chain::StaticChain,
+                             start_idx::Int64,
+                             buffer::CircularDeque{ChainDigest},
+                             path::Union{Nothing, String})
+    @unpack proc, query = chain
+    for it = start_idx:proc.samples
+        mc_step!(chain, proc, it)
+        report_step!(buffer, chain, it, path)
+    end
+    return nothing
+end
+
+function resume_mc_chain(path::String, buffer_size::Int64)
+    @assert isfile(path) "Path $path is not a file"
+    chain, idx = load(path, "current_chain", "current_idx")
+    buffer = CircularDeque{ChainDigest}(buffer_size)
+    static_monte_carlo!(chain, idx + 1, buffer, path)
+    return chain
+end

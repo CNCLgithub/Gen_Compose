@@ -1,4 +1,4 @@
-export MCMC, MCMCTrace, MetropolisHastings, MHTrace
+export MCMC, MCMCTrace, MetropolisHastings, MHTrace, StaticMHChain
 
 abstract type MCMC <: InferenceProcedure end
 
@@ -12,21 +12,15 @@ struct MetropolisHastings <: MCMC
     update::T where T<:Function
 end
 
-# TODO: consider consolidating all chains to common api
+"""
+Describes state of chain for MH
+"""
 mutable struct StaticMHChain <: StaticChain
-    buffer::Vector{T} where {T}
-    buffer_idx::Int
-    path::Union{String, Nothing}
+    query::StaticQuery
+    proc::MCMC
+    state::Gen.Trace
+    auxillary::AuxillaryState
 end
-isfull(c::StaticMHChain) = c.buffer_idx == length(c.buffer)
-
-"""
-Describes state of trace for MH
-"""
-mutable struct MHTrace <: MCMCTrace
-    current_trace
-end
-
 
 
 function initialize_procedure(proc::MCMC,
@@ -34,70 +28,53 @@ function initialize_procedure(proc::MCMC,
     trace,_ = Gen.generate(query.forward_function,
                            query.args,
                            query.observations)
-    return MHTrace(trace)
+    trace
 end
 
-function mc_step!(state::MHTrace,
-                  proc::MCMC,
-                  query::StaticQuery)
+function initialize_chain(proc::MCMC,
+                          query::StaticQuery)
+    trace = initialize_procedure(proc, query)
+    return StaticMHChain(query, proc, trace, EmptyAuxState())
+end
 
-    state.current_trace = proc.update(state.current_trace)
+function mc_step!(chain::StaticMHChain,
+                  proc::MetropolisHastings,
+                  idx::Int)
+    @unpack proc, state = chain
+    chain.state = proc.update(state)
     return nothing
 end
 
 
-function initialize_results(proc::MCMC,
-                            query::StaticQuery;
-                            path::Union{String, Nothing} = nothing,
-                            buffer_size::Int = 500)
-
-    buffer = Vector{Dict}(undef, buffer_size)
-    isnothing(path) || isfile(path) && rm(path)
-    return StaticMHChain(buffer, 1, path)
-end
-
-# function update_chain!(c::StaticMHChain, trace)
-#     c.buffer[c.buffer_idx] = trace
-#     return nothing
-# end
+function report_step!(buffer::CircularDeque{ChainDigest},
+                      chain::StaticMHChain,
+                      idx::Int,
+                      path::Union{Nothing, String})
 
 
-function report_step!(chain::StaticMHChain,
-                      state::MCMCTrace,
-                      aux_state::Any,
-                      query::StaticQuery,
-                      idx::Int)
-    parsed = parse_trace(query, state.current_trace)
-    step_parse = Dict(
-        "estimates" => parsed,
-        "log_score" => get_score(state.current_trace),
-        "aux_state" => aux_state
-    )
+    @unpack proc, query, state, auxillary = chain
+    push!(buffer, digest(query, chain))
 
+    buffer_idx = length(buffer)
     # write buffer to disk
-    buffer = chain.buffer
-    buffer[chain.buffer_idx] = step_parse
-    # TODO allow this logic for static mh
-    # isfinished = (idx == length(query))
-    isfinished = true
-    # if isfull(chain) || isfinished
-    if isfull(chain)
-        println("writing at step $idx")
-        start = idx - chain.buffer_idx + 1
-        if !isnothing(chain.path)
-            jldopen(chain.path, "a+") do file
-                for (i,j) = enumerate(start:idx)
-                    file["$j"] = chain.buffer[i]
-                end
+    isfull = capacity(buffer) == buffer_idx
+    isfinished = (idx == proc.samples)
+    if isfull || isfinished
+        @debug "writing at step $idx"
+        start = idx - buffer_idx + 1
+        # no path to save, exit
+        isnothing(path) || jldopen(path, "a+") do file
+            # save current chain
+            haskey(file, "current_chain") && delete!(file, "current_chain")
+            file["current_chain"] = chain
+            haskey(file, "current_idx") && delete!(file, "current_idx")
+            file["current_idx"] = idx
+            # save digest buffer
+            for j = start:idx
+                file["$j"] = popfirst!(buffer)
             end
         end
-        buffer = isfinished ? buffer : Vector{Dict}(undef, length(chain.buffer))
-        chain.buffer_idx = 1
-    else
-        # increment
-        chain.buffer_idx += 1
     end
-    chain.buffer = buffer
     return nothing
 end
 
