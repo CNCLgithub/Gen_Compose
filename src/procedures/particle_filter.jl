@@ -108,7 +108,7 @@ function smc_step!(chain::SeqPFChain, proc::AbstractParticleFilter,
     # Resample before moving on...
     Gen.maybe_resample!(state, ess_threshold=proc.ess)
     # update the state of the particles
-    argdiffs = (UnknownChange(), )
+    argdiffs = Tuple([UnknownChange() for _ in args])
     println("taking step $(first(args))")
     @time Gen.particle_filter_step!(state, args, argdiffs,
                               observations)
