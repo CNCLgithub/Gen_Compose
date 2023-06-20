@@ -9,16 +9,30 @@ struct ParticleFilter <: AbstractParticleFilter
     rejuvenation::T where T<:Function
 end
 
+# REVIEW: has different meaning than MH.steps
+steps(p::ParticleFilter) = p.particles
+
 #################################################################################
 # Static query support
 #################################################################################
 
+mutable struct StaticPFChain <: StaticChain
+    query::StaticQuery
+    proc::AbstractParticleFilter
+    state::Gen.ParticleFilterState
+    auxillary::AuxillaryState
+end
+
+estimand(c::StaticPFChain) = c.query
+estimator(c::StaticPFChain) = c.proc
+estiamte(c::StaticPFChain) = c.state
+
+
 function initialize_chain(proc::AbstractParticleFilter,
-                          query::StaticQuery,
-                          path::Union{String, Nothing},
-                          buffer_size::Int64)
+                          query::StaticQuery)
     state = initialize_procedure(proc, query)
-    error("Not implemented (yet)")
+    aux = EmptyAuxState()
+    return StatPFChain(query, proc, state, aux)
 end
 
 function initialize_procedure(proc::AbstractParticleFilter,
@@ -29,9 +43,9 @@ function initialize_procedure(proc::AbstractParticleFilter,
                                    proc.particles)
 end
 
-function mc_step!(state::Gen.ParticleFilterState,
-                  proc::AbstractParticleFilter,
-                  query::StaticQuery)
+function pfstep!(state::Gen.ParticleFilterState,
+               proc::AbstractParticleFilter,
+               query::StaticQuery)
     # Resample before moving on...
     resample!(proc, state)
     # update the state of the particles
@@ -68,6 +82,11 @@ mutable struct SeqPFChain <: SequentialChain
     auxillary::AuxillaryState
 end
 
+
+estimand(c::SeqPFChain) = c.query
+estimator(c::SeqPFChain) = c.proc
+estiamte(c::SeqPFChain) = c.state
+
 function initialize_chain(proc::AbstractParticleFilter,
                           query::SequentialQuery)
     state = initialize_procedure(proc, query)
@@ -94,56 +113,22 @@ function rejuvenate!(chain::SeqPFChain,
     end
 end
 
-function smc_step!(chain::SeqPFChain, i::Int64)
-    @unpack proc, query = chain
-    squery = query[i]
-    smc_step!(chain, proc, squery)
-    return nothing
+function step!(c::SeqPFChain, i::Int)
+    step!(c, estimator(c), i)
 end
 
-function smc_step!(chain::SeqPFChain, proc::AbstractParticleFilter,
-                   query::StaticQuery)
-    @unpack state = chain
-    @unpack args, observations = query
+function step!(chain::SeqPFChain,
+               proc::AbstractParticleFilter,
+               i::Int64)
+    @unpack query, state = chain
+    squery = query[i]
+    @unpack args, observations = squery
     # Resample before moving on...
     Gen.maybe_resample!(state, ess_threshold=proc.ess)
     # update the state of the particles
     argdiffs = Tuple([UnknownChange() for _ in args])
-    println("taking step $(first(args))")
-    @time Gen.particle_filter_step!(state, args, argdiffs,
+    Gen.particle_filter_step!(state, args, argdiffs,
                               observations)
     rejuvenate!(chain, proc)
-    return nothing
-end
-
-function report_step!(buffer::CircularDeque{ChainDigest},
-                      chain::SeqPFChain,
-                      idx::Int,
-                      path::Union{Nothing, String})
-
-    @unpack query, state, auxillary = chain
-
-    push!(buffer, digest(query, chain))
-
-    buffer_idx = length(buffer)
-    # write buffer to disk
-    isfull = capacity(buffer) == buffer_idx
-    isfinished = (idx == length(query))
-    if isfull || isfinished
-        @debug "writing at step $idx"
-        start = idx - buffer_idx + 1
-        # no path to save, exit
-        isnothing(path) || jldopen(path, "a+") do file
-            # save current chain
-            haskey(file, "current_chain") && delete!(file, "current_chain")
-            file["current_chain"] = chain
-            haskey(file, "current_idx") && delete!(file, "current_idx")
-            file["current_idx"] = idx
-            # save digest buffer
-            for j = start:idx
-                file["$j"] = popfirst!(buffer)
-            end
-        end
-    end
     return nothing
 end
