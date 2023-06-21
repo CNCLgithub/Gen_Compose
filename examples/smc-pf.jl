@@ -1,56 +1,37 @@
 using Gen
 using Gen_Compose
 
-# Helper
-
-
-struct RandomVec <: Gen.Distribution{Vector{Float64}} end
-
-const random_vec = RandomVec()
-
-function Gen.logpdf(::RandomVec, x::Vector{Float64}, mu::Vector{U}, noise::T) where {U<:Real,T<:Real}
-    var = noise * noise
-    diff = x - mu
-    vec = diff[:]
-    return -(vec' * vec)/ (2.0 * var) - 0.5 * log(2.0 * pi * var)
-end;
-
-function Gen.random(::RandomVec, mu::Vector{U}, noise::T) where {U<:Real,T<:Real}
-    vec = copy(mu)
-    for i=1:length(mu)
-        vec[i] = mu[i] + randn() * noise
-    end
-    return vec
-end;
-(::RandomVec)(mu, noise) = random(RandomVec(), mu, noise)
-
-# -----------------------------------------------------------
-# First define the world and the posterior
-#
-# The posterior to compute is P(m,b | ys)
-
-xs = Vector{Float64}(1:10)
-
-# The forward model
-@gen function markov_model(y::Union{Nothing, Float64}, t::Int,
-                           prior::DeferredPrior, addr)
-    m = @trace(draw(prior, :m))
-    b = @trace(draw(prior, :b))
-    if typeof(y) == Nothing
-        y = b
-    end
-    new_y = y + m
-    return @trace(normal(new_y, 0.1), addr)
+@gen function kernel(t::Int, x::Float64, sigma::Float64)
+    y::Float64 = @trace(normal(x, sigma), :y)
+    return y
 end
 
+@gen function seq_gm(n::Int)
+    m = @trace(uniform(-5.0, 5.0), :m)
+    b = @trace(uniform(-10., 10.), :b)
+    sigma = @trace(gamma(2.0, 1.0), :sigma)
+    x0 = @trace(normal(0., sigma), :x0)
+    ys = @trace(Unfold(kernel)(n, x0, sigma), :ys)
+    return ys
+end
+
+@load_generated_functions
 
 # Observations
-ys = 2.5*xs + fill(10.0, length(xs))
-ys = random_vec(ys, 0.1)
-obs = Gen.choicemap()
-Gen.set_value!(obs, :y, ys)
+gt_m = 2.0
+gt_b = -1.0
+xs = LinRange(0, 5, 10)
+ys = @. gt_m * xs + gt_b
 
-# define the prior over the set of latents
+obs = Gen.choicemap()
+for i = 1:length(ys)
+    obs[:ys => i => :y] = ys[i]
+end
+
+# Query - the estimand
+
+query = SequentialQuery(lm, gm, (n,), )
+
 latents = [:m, :b]
 prior = DeferredPrior(latents,
                       [StaticDistribution{Float64}(uniform, (-4, 4))

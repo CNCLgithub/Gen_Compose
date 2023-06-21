@@ -45,10 +45,11 @@ buffer(l::JLD2Logger) = l.buffer
 function report_step!(logger::JLD2Logger,
                       chain::InferenceChain,
                       idx::Int)
-
     p = estimator(chain)
     q = estimand(chain)
     bfr = buffer(logger)
+    idx = step(chain)
+
     # extract digest and push to buffer
     push!(bfs, digest(q, chain))
 
@@ -57,7 +58,7 @@ function report_step!(logger::JLD2Logger,
     isfull = capacity(bfr) == buffer_idx
 
     # write if full or chain is done
-    if isfull || is_finished(chain, idx)
+    if isfull || is_finished(chain)
         @debug "writing at step $idx"
         start = idx - buffer_idx + 1
         # no path to save, exit
