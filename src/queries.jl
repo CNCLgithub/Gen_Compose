@@ -1,9 +1,29 @@
-export SequentialQuery,
-    initialize_results
+export StaticQuery,
+    SequentialQuery
 
 """
 
-Defines a singule target distribution
+Defines a single target distribution
+"""
+struct StaticQuery <: Query
+    # A collection of latents in the left hand of the posterior
+    latents::LatentMap
+    # The forward function
+    forward_function::T where T<:Gen.GenerativeFunction
+    args::T where T<:Tuple
+    # A numerical structure that contains the observation(s)
+    observations::Gen.ChoiceMap
+end
+
+latents(q::StaticQuery) = q.latents
+given(q::StaticQuery) = (q.forward_function, q.args, q.observations)
+
+@doc raw"""
+Defines a conditional where ``Pr(H \mid O)`` is factorized into a series of:
+```math
+
+Pr(H_0) * \prod^T_i Pr(H_i \mid O_i) Pr(H_i \mid H_{i-1})
+```
 """
 struct SequentialQuery <: Query
     # A list of selections describing the latents to infer
@@ -17,9 +37,9 @@ struct SequentialQuery <: Query
     observations::Vector{Gen.ChoiceMap}
 end;
 
+latents(q::SequentialQuery) = q.latents
 initial_args(q::SequentialQuery) = q.initial_args
 initial_constraints(q::SequentialQuery) = q.initial_constraints
-initialize_results(q::SequentialQuery) = length(q.latents)
 
 function Base.length(q::SequentialQuery)
     length(q.observations)
@@ -44,4 +64,3 @@ function Base.getindex(q::SequentialQuery, i::Int)
     StaticQuery(q.latents, q.forward_function, args, obs)
 end
 
-latents(q::SequentialQuery) = q.latents

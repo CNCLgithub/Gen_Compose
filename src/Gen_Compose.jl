@@ -6,86 +6,168 @@ module Gen_Compose
 using Gen
 using UnPack
 
+# see https://www.oxinabox.net/2020/04/19/Julia-Antipatterns.html#notimplemented-exceptions
 #################################################################################
-# Chain - the estimate
+# Exports
 ##################################################################################
 
 export InferenceChain,
-    StaticChain,
-    SequentialChain,
     estimand,
     estimator,
     estimate,
     auxillary,
-    chain_length,
+    step,
+    steps,
     is_finished,
     run_chain,
     run_chain!,
+    step!,
     resume_chain,
-    report_step!
-
-
-"""Data defining inference chain"""
-abstract type InferenceChain end
-
-abstract type StaticChain <: InferenceChain end
-
-abstract type SequentialChain <: InferenceChain end
-
-# see https://www.oxinabox.net/2020/04/19/Julia-Antipatterns.html#notimplemented-exceptions
-# https://obsidian.md/
-# https://docs.logseq.com/#/page/start%20here
-# estimand
-estimand(::InferenceChain)::InferenceQuery
-# estimator
-estimator(::InferenceChain)::InferenceProcedure
-#estimate
-estimate(::InferenceChain)
-
-auxillary(::InferenceChain)
-
-chain_length(::InferenceChain)::Int
-chain_length(c::StaticChain) = steps(estimator(chain))
-chain_length(c::SequentialChain) = length(estimand(chain))
-
-is_finished(::InferenceChain) = chain_length(c) == i
-
-export ChainLogger,
+    report_step!,
+    ChainLogger,
     buffer,
     report_step!,
-    resume_chain
+    resume_chain,
+    InferenceProcedure,
+    AuxillaryState
 
+#################################################################################
+# Types
+##################################################################################
 
+@doc raw"The estimand to compute: ``Pr(H \mid O)``"
+abstract type Query end
+
+"An estimator"
+abstract type InferenceProcedure end
+
+"An application of estimator to the estimand"
+abstract type InferenceChain{Query, InferenceProcedure} end
+
+"A mapping to digest components of an query during inference"
+const LatentMap = Dict{Symbol, Function}
+
+"A container for digested components"
+const ChainDigest = Dict{Symbol, Any}
+
+"""Auxillary state for procedure"""
+abstract type AuxillaryState end
+
+"A utility to process chain states"
 abstract type ChainLogger end
-buffer(::chainlogger)
+
+#################################################################################
+# Chain - the estimate
+##################################################################################
+
+"""
+    estimand(chain)
+
+Denotes the target of inference.
+"""
+function estimand end
+
+"""
+    estimator(chain)
+
+The approximator over the estimand.
+"""
+function estimator end
+
+"""
+    estimate(chain)
+
+The result of applying the estimator to the estimand.
+"""
+function estimate end
 
 
-report_step!(::ChainLogger, ::InferenceChain, ::Int)
+"""
+    auxillary(chain)
+
+Additional state of the chain other than the estimate.
+"""
+function auxillary end
+
+"""
+    step(chain)::Int
+
+The current iteration of the chain.
+"""
+function step end
+
+"""
+    is_finished(chain)::Bool
+
+Whether the chain is finished.
+"""
+is_finished(c::InferenceChain) = steps(c) == step(c)
+
+"""
+    initialize_chain(::InferenceProcedure, ::Query)::InferenceChain
+
+Initializes an inference chain for the procedure, query context.
+"""
+function initialize_chain end
+
+"""
+    step!(::InferenceChain)
+
+Advances the chain to the next outer step.
+"""
+function step! end
 
 
+
+"""
+    buffer(::ChainLogger)
+
+Returns the buffer that stores intermediate states of the inference chain
+"""
+function buffer end
+
+
+"""
+    report_step!(::ChainLogger, ::InferenceChain, ::Int)
+
+Makes a recor of the chain at the current step.
+"""
+function report_step! end
+
+
+"""
+    run_chain(proc, query, [logger])
+
+Initializes and runs an inference chain, applying the inference
+procedure to the query.
+
+Optionally, records intermediate chain states via `logger`.
+"""
 function run_chain(p::InferenceProcedure,
                    q::Query,
                    logger::ChainLogger = null_logger)
     # Initialized data structures that hold inference traces
     chain = initialize_chain(p, q)
-    run_chain!(chain, 1, logger, path)
+    run_chain!(chain, logger)
     return chain
 end
 
 function run_chain!(chain::InferenceChain,
-                    start_idx::Int,
                     logger::ChainLogger)
 
-    for it = start_idx:chain_length(chain)
-        step!(chain, it)
-        report_step!(logger, chain, it)
+    while !is_finished(chain)
+        step!(chain)
+        report_step!(logger, chain)
     end
     return nothing
 end
 
-function resume_chain(::ChainLogger)
-    error("Not implemented")
-end
+"""
+    resume_chain(::ChainLogger)::InferenceChain
+
+Resumes and completes inference from a logger checkpoint.
+"""
+function resume_chain end
 
 include("loggers.jl")
 
@@ -93,19 +175,26 @@ include("loggers.jl")
 # Queries - the estimand
 ##################################################################################
 
-"The posterior to compute: $Pr(H \mid O)$"
-abstract type Query end
+"""
+    latents(::Query)
 
-"The left-hand side of the conditional"
-latents(::Query)
+The left-hand side of the conditional
+"""
+function latents end
+
+"""
+    given(::Query)
+
+The right-hand side of the conditional
+"""
+function given end
 
 
-"The right-hand side of the conditional"
-given(::Query)
+"""
+    digest(lm, chain)
 
-const LatentMap = Dict{Symbol, Function}
-const ChainDigest = Dict{Symbol, Any}
-
+Applies a latent map to a chain.
+"""
 function digest(lm::LatentMap, chain::InferenceChain)
     d = ChainDigest()
     for (k,f) in lm
@@ -119,36 +208,11 @@ function digest(q::Query, chain::InferenceChain)
     digest(lm, chain)
 end
 
-include("queries/queries.jl")
+include("queries.jl")
 
 #################################################################################
 # Inference procedures - the estimator
 #################################################################################
-
-export InferenceProcedure,
-    AuxillaryState,
-    EmptyAuxState,
-    steps,
-    initialize_chain,
-    step!,
-    report_step!
-
-"A posterior estimator"
-abstract type InferenceProcedure end
-
-"""Auxillary state for procedure"""
-abstract type AuxillaryState end
-
-"""Dummy auxillary state"""
-struct EmptyAuxState <: AuxillaryState end
-
-
-steps(::InferenceProcedure)::Int
-function initialize_chain(::InferenceProcedure, ::Query)::InferenceChain
-    error("Not implemented")
-end
-
-step!(::InferenceChain, ::Int)
 
 include("procedures/procedures.jl")
 
