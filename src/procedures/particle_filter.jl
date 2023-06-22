@@ -35,8 +35,9 @@ step(c::PFChain) = c.step
 steps(c::PFChain) = c.steps
 
 function initialize_chain(proc::AbstractParticleFilter,
-                          query::Q) where {Q<:Query}
-    PFChain{Q}(query, proc)
+                          query::Q,
+                          n::Int) where {Q<:Query}
+    PFChain{Q}(query, proc, n)
 end
 
 #################################################################################

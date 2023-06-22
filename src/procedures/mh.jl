@@ -24,9 +24,9 @@ mutable struct MHChain{Q} <: InferenceChain{Q, MCMC}
                         p::MCMC,
                         n::Int,
                         i::Int = 1) where {Q<:Query}
-        state = initialize_procedure(proc, query)
+        state = initialize_procedure(p, q)
         aux = EmptyAuxState()
-        return new(query, proc, state, aux, i, n)
+        return new(q, p, state, aux, i, n)
     end
 end
 
@@ -46,8 +46,9 @@ function initialize_procedure(proc::MCMC,
 end
 
 function initialize_chain(proc::MCMC,
-                          query::Q) where {Q<:Query}
-    MHChain{Q}(query, proc)
+                          query::Q,
+                          n::Int) where {Q<:Query}
+    MHChain{Q}(query, proc, n)
 end
 
 function step!(chain::MHChain{StaticQuery})
