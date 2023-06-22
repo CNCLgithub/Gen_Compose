@@ -12,46 +12,48 @@ end
 buffer(::NullLogger) = nothing
 
 function report_step!(logger::NullLogger,
-                      chain::InferenceChain,
-                      idx::Int)
+                      chain::InferenceChain)
     return nothing
 end
 
 mutable struct MemLogger <: ChainLogger
     buffer::CircularDeque{ChainDigest}
+    MemLogger(n::Int) = new(CircularDeque{ChainDigest}(n))
 end
 
 buffer(l::MemLogger) = l.buffer
 
 function report_step!(logger::MemLogger,
-                      chain::InferenceChain,
-                      idx::Int)
+                      chain::InferenceChain)
 
     p = estimator(chain)
     q = estimand(chain)
     bfr = buffer(logger)
     # extract digest and push to buffer
-    push!(bfs, digest(q, chain))
+    push!(bfr, digest(q, chain))
     return nothing
 end
 
 mutable struct JLD2Logger <: ChainLogger
     buffer::CircularDeque{ChainDigest}
     path::String
+    function JLD2Logger(n::Int, p::String;
+                        overwrite=false)
+        new(CircularDeque{ChainDigest}(n), p)
+    end
 end
 
 buffer(l::JLD2Logger) = l.buffer
 
 function report_step!(logger::JLD2Logger,
-                      chain::InferenceChain,
-                      idx::Int)
+                      chain::InferenceChain)
     p = estimator(chain)
     q = estimand(chain)
     bfr = buffer(logger)
     idx = step(chain)
 
     # extract digest and push to buffer
-    push!(bfs, digest(q, chain))
+    push!(bfr, digest(q, chain))
 
     # determine if buffer is full
     buffer_idx = length(bfr)
@@ -81,6 +83,6 @@ end
 function resume_chain(l::ChainLogger)
     @assert isfile(l.path) "Path $path does not exist"
     chain, idx = _latest_state(path) #TODO
-    run_chain!(chain, idx + 1, l)
+    run_chain!(chain, l)
     return chain
 end

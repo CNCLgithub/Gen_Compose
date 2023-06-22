@@ -12,6 +12,12 @@ using UnPack
 ##################################################################################
 
 export InferenceChain,
+    Query,
+    LatentMap,
+    ChainDigest,
+    InferenceProcedure,
+    AuxillaryState,
+    ChainLogger,
     estimand,
     estimator,
     estimate,
@@ -24,12 +30,10 @@ export InferenceChain,
     step!,
     resume_chain,
     report_step!,
-    ChainLogger,
     buffer,
     report_step!,
     resume_chain,
-    InferenceProcedure,
-    AuxillaryState
+    digest
 
 #################################################################################
 # Types
@@ -136,18 +140,19 @@ function report_step! end
 
 
 """
-    run_chain(proc, query, [logger])
+    run_chain(proc, query, n, [logger])
 
 Initializes and runs an inference chain, applying the inference
-procedure to the query.
+procedure to the query for `n` steps.
 
 Optionally, records intermediate chain states via `logger`.
 """
 function run_chain(p::InferenceProcedure,
                    q::Query,
-                   logger::ChainLogger = null_logger)
+                   n::Int,
+                   logger::ChainLogger = NullLogger())
     # Initialized data structures that hold inference traces
-    chain = initialize_chain(p, q)
+    chain = initialize_chain(p, q, n)
     run_chain!(chain, logger)
     return chain
 end
