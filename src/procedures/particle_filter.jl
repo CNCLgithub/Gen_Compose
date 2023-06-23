@@ -9,7 +9,7 @@ struct ParticleFilter <: AbstractParticleFilter
     rejuvenation::T where T<:Function
 end
 
-mutable struct PFChain{Q} <: InferenceChain{Q, AbstractParticleFilter}
+mutable struct PFChain{Q, P<:AbstractParticleFilter} <: InferenceChain{Q, P}
     query::Q
     proc::AbstractParticleFilter
     state::Gen.ParticleFilterState
@@ -17,15 +17,8 @@ mutable struct PFChain{Q} <: InferenceChain{Q, AbstractParticleFilter}
     step::Int
     steps::Int
 
-    function PFChain{Q}(q::Q,
-                        p::AbstractParticleFilter,
-                        n::Int,
-                        i::Int = 1) where {Q<:Query}
-        state = initialize_procedure(proc, query)
-        aux = EmptyAuxState()
-        return new(query, proc, state, aux, i, n)
-    end
 end
+
 
 estimand(c::PFChain) = c.query
 estimator(c::PFChain) = c.proc
@@ -34,15 +27,26 @@ auxillary(c::PFChain) = c.auxillary
 step(c::PFChain) = c.step
 steps(c::PFChain) = c.steps
 
-function initialize_chain(proc::AbstractParticleFilter,
+function initialize_chain(proc::P,
                           query::Q,
-                          n::Int) where {Q<:Query}
-    PFChain{Q}(query, proc, n)
+                          n::Int) where
+    {Q<:Query, P<:AbstractParticleFilter}
+    PFChain{Q, P}(query, proc, n)
 end
 
 #################################################################################
 # Static query support
 #################################################################################
+function PFChain{Q, P}(q::Q,
+                       p::P,
+                       n::Int,
+                       i::Int = 1) where
+        {Q<:StaticQuery,  P<:AbstractParticleFilter}
+
+    state = initialize_procedure(p, q)
+    aux = EmptyAuxState()
+    return PFChain{Q, P}(q, p, state, aux, i, n)
+end
 
 function initialize_procedure(proc::AbstractParticleFilter,
                               query::StaticQuery)
@@ -73,6 +77,16 @@ end
 # Sequential query support
 #################################################################################
 
+function PFChain{Q, P}(q::Q,
+                       p::P,
+                       n::Int,
+                       i::Int = 1) where
+        {Q<:SequentialQuery,  P<:AbstractParticleFilter}
+    state = initialize_procedure(p, q)
+    aux = EmptyAuxState()
+    PFChain{Q, P}(q, p, state, aux, i, length(q))
+end
+
 function initialize_procedure(proc::AbstractParticleFilter,
                               query::SequentialQuery)
     args = initial_args(query)
@@ -85,7 +99,8 @@ function initialize_procedure(proc::AbstractParticleFilter,
 end
 
 function rejuvenate!(chain::PFChain{Q}) where {Q<:SequentialQuery}
-    @unpack particles, rejuvination = proc
+    @unpack particles, rejuvenation = (estimator(chain))
+    state = estimate(chain)
     for p=1:particles
         state.traces[p] = rejuvenation(state.traces[p])
     end
@@ -98,10 +113,10 @@ function step!(chain::PFChain{Q}) where {Q<:SequentialQuery}
     # Resample before moving on...
     Gen.maybe_resample!(state, ess_threshold=proc.ess)
     # update the state of the particles
-    argdiffs = Tuple([UnknownChange() for _ in args])
+    argdiffs = Tuple(fill(UnknownChange(), length(args)))
     Gen.particle_filter_step!(state, args, argdiffs,
                               observations)
-    rejuvenate!(chain, proc)
+    rejuvenate!(chain)
     chain.step += 1
     return nothing
 end

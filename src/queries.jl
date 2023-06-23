@@ -33,9 +33,22 @@ struct SequentialQuery <: Query
     initial_args::Tuple
     initial_constraints::Gen.ChoiceMap
     args::Vector{Tuple}
+    argdiffs::Vector{Tuple}
     # A collection of observation(s) across time
     observations::Vector{Gen.ChoiceMap}
-end;
+end
+
+"""
+    SequentialQuery(latents, forward_function, initial_args,
+                    initial_constraints, args, obs)
+
+Construct a `SequentialQuery` with defaul argdiffs (all unknown change).
+"""
+function SequentialQuery(latents, ff, iargs, ics, args, obs)
+    nargs = length(args)
+    nobs = length(obs)
+    argdiffs = fill((fill(UnknownChange(), nargs)), nobs)
+end
 
 latents(q::SequentialQuery) = q.latents
 initial_args(q::SequentialQuery) = q.initial_args
