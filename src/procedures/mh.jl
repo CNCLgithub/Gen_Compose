@@ -36,6 +36,10 @@ estimate(c::MHChain) = c.state
 auxillary(c::MHChain) = c.auxillary
 step(c::MHChain) = c.step
 steps(c::MHChain) = c.steps
+function increment!(c::MHChain)
+    c.step += 1
+    return nothing
+end
 
 function initialize_procedure(proc::MCMC,
                               query::StaticQuery)

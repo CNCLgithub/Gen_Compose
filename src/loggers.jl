@@ -40,6 +40,13 @@ mutable struct JLD2Logger <: ChainLogger
     path::String
     function JLD2Logger(n::Int, p::String;
                         overwrite=false)
+        if isfile(p)
+            if overwrite
+                rm(p)
+            else
+                error("Chain log file exists.")
+            end
+        end
         new(CircularDeque{ChainDigest}(n), p)
     end
 end
