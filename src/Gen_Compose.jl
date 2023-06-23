@@ -105,7 +105,7 @@ function step end
 
 Whether the chain is finished.
 """
-is_finished(c::InferenceChain) = steps(c) == step(c)
+is_finished(c::InferenceChain) = steps(c) < step(c)
 
 """
     initialize_chain(::InferenceProcedure, ::Query)::InferenceChain
@@ -117,10 +117,17 @@ function initialize_chain end
 """
     step!(::InferenceChain)
 
-Advances the chain to the next outer step.
+Perform an inference step on the chain
 """
 function step! end
 
+
+"""
+    increment!(::InferenceChain)
+
+Advances the chain to the next outer increment.
+"""
+function increment! end
 
 
 """
@@ -163,6 +170,7 @@ function run_chain!(chain::InferenceChain,
     while !is_finished(chain)
         step!(chain)
         report_step!(logger, chain)
+        increment!(chain)
     end
     return nothing
 end

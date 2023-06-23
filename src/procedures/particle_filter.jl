@@ -26,6 +26,10 @@ estimate(c::PFChain) = c.state
 auxillary(c::PFChain) = c.auxillary
 step(c::PFChain) = c.step
 steps(c::PFChain) = c.steps
+function increment!(c::PFChain)
+    c.step += 1
+    return nothing
+end
 
 function initialize_chain(proc::P,
                           query::Q,
@@ -69,7 +73,6 @@ function step!(chain::PFChain{Q}) where {Q<:StaticQuery}
     tmp = state.traces
     state.traces = state.new_traces
     state.new_traces = tmp
-    chain.step += 1
     return nothing
 end
 
@@ -117,6 +120,5 @@ function step!(chain::PFChain{Q}) where {Q<:SequentialQuery}
     Gen.particle_filter_step!(state, args, argdiffs,
                               observations)
     rejuvenate!(chain)
-    chain.step += 1
     return nothing
 end

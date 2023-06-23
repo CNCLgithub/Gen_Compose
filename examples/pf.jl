@@ -21,13 +21,13 @@ end
 # Observations
 gt_m = 2.0
 gt_b = -1.0
-xs = collect(LinRange(0, 5, 11))
+xs = collect(LinRange(0, 5, 10))
 ys = @. gt_m * xs + gt_b
 
 obs = Vector{ChoiceMap}(undef, 10)
 for i = 1:10
     cm = Gen.choicemap()
-    cm[:ys => i => :y] = ys[i+1]
+    cm[:ys => i => :y] = ys[i]
     obs[i] = cm
 end
 
@@ -36,6 +36,8 @@ function best_particle(c::InferenceChain)
     best = argmax(pf_state.log_weights)
     best_trace = pf_state.traces[best]
     (sigma = best_trace[:sigma],
+     m = best_trace[:m],
+     b = best_trace[:b],
      ls = get_score(best_trace))
 end
 
@@ -57,16 +59,17 @@ query = SequentialQuery(lm, gm,
 @gen function line_proposal(current_trace)
     m ~ normal(current_trace[:m], 0.5)
     b ~ normal(current_trace[:b], 0.5)
-end;
+end
 
 function gaussian_drift_update(tr)
     # Gaussian drift on line params
     (tr, _) = mh(tr, line_proposal, ())
 
     # Block resimulation: Update the prob_outlier parameter
-    (tr, w) = mh(tr, select(:sigma))
+    (tr, _) = mh(tr, select(:sigma))
     tr
-end;
+end
+
 
 particles = 100
 ess = 0.5
@@ -75,6 +78,8 @@ proc = ParticleFilter(particles, ess, gaussian_drift_update)
 # initialize and run the chain
 nsteps = length(xs)
 chain = run_chain(proc, query, nsteps)
+
+println(typeof(chain))
 
 # by default, `run_chain` doesn't log intermediate steps in the chain
 # However, we can call `digest` on the current head of the chain.
@@ -87,7 +92,7 @@ chain = run_chain(proc, query, nsteps, mlog)
 display(length(buffer(mlog)))
 
 # We can also log to disk
-dlog = JLD2Logger(nsteps, "chain_log.jld2")
+dlog = JLD2Logger(nsteps, "chain_log.jld2";overwrite = true)
 chain = run_chain(proc, query, nsteps, dlog)
 
 #TODO: resume chain
