@@ -34,6 +34,7 @@ function report_step!(logger::MemLogger,
     return nothing
 end
 
+#TODO: handle overwritting
 mutable struct JLD2Logger <: ChainLogger
     buffer::CircularDeque{ChainDigest}
     path::String
