@@ -10,9 +10,17 @@ struct StaticQuery <: Query
     latents::LatentMap
     # The forward function
     forward_function::T where T<:Gen.GenerativeFunction
-    args::T where T<:Tuple
+    args::Tuple
+    argdiffs::Tuple
     # A numerical structure that contains the observation(s)
     observations::Gen.ChoiceMap
+end
+
+function StaticQuery(ls, ff, args, obs)
+    argdiffs =
+    nargs = length(args)
+    argdiffs = tuple(fill(UnknownChange(), nargs)...)
+    StaticQuery(ls, ff, args, argdiffs, obs)
 end
 
 latents(q::StaticQuery) = q.latents
@@ -48,6 +56,7 @@ function SequentialQuery(latents, ff, iargs, ics, args, obs)
     nargs = length(args)
     nobs = length(obs)
     argdiffs = fill((fill(UnknownChange(), nargs)), nobs)
+    SequentialQuery(latents, ff, iargs, ics, args, argdiffs, obs)
 end
 
 latents(q::SequentialQuery) = q.latents
@@ -74,6 +83,7 @@ function Base.getindex(q::SequentialQuery, i::Int)
     # 1 <= i <= length(q) || throw(BoundsError(q, i))
     obs = q.observations[i]
     args = q.args[i]
-    StaticQuery(q.latents, q.forward_function, args, obs)
+    argdiff = q.argdiffs[i]
+    StaticQuery(q.latents, q.forward_function, args, argdiff, obs)
 end
 

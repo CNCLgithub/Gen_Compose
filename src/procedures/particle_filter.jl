@@ -112,11 +112,10 @@ end
 function step!(chain::PFChain{Q}) where {Q<:SequentialQuery}
     @unpack query, proc, state, step = chain
     squery = query[step]
-    @unpack args, observations = squery
+    @unpack args, argdiffs, observations = squery
     # Resample before moving on...
     Gen.maybe_resample!(state, ess_threshold=proc.ess)
     # update the state of the particles
-    argdiffs = Tuple(fill(UnknownChange(), length(args)))
     Gen.particle_filter_step!(state, args, argdiffs,
                               observations)
     rejuvenate!(chain)
