@@ -25,8 +25,6 @@ buffer(l::MemLogger) = l.buffer
 
 function report_step!(logger::MemLogger,
                       chain::InferenceChain)
-
-    p = estimator(chain)
     q = estimand(chain)
     bfr = buffer(logger)
     # extract digest and push to buffer
@@ -38,8 +36,10 @@ end
 mutable struct JLD2Logger <: ChainLogger
     buffer::CircularDeque{ChainDigest}
     path::String
+    save_chain::Bool
     function JLD2Logger(n::Int, p::String;
-                        overwrite=false)
+                        overwrite=false,
+                        save_chain=false)
         if isfile(p)
             if overwrite
                 rm(p)
@@ -47,7 +47,7 @@ mutable struct JLD2Logger <: ChainLogger
                 error("Chain log file exists.")
             end
         end
-        new(CircularDeque{ChainDigest}(n), p)
+        new(CircularDeque{ChainDigest}(n), p, save_chain)
     end
 end
 
@@ -72,11 +72,15 @@ function report_step!(logger::JLD2Logger,
         @debug "writing at step $idx"
         start = idx - buffer_idx + 1
         # no path to save, exit
+        @show logger.path
         jldopen(logger.path, "a+") do file
             # REVIEW: This can hang depending on chain complexity
             # save current chain
-            haskey(file, "current_chain") && delete!(file, "current_chain")
-            file["current_chain"] = chain
+            if logger.save_chain
+                haskey(file, "current_chain") && delete!(file, "current_chain")
+                file["current_chain"] = chain
+            end
+
             haskey(file, "current_idx") && delete!(file, "current_idx")
             file["current_idx"] = idx
             # save digest buffer

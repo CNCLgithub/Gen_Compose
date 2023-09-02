@@ -105,7 +105,7 @@ function step end
 
 Whether the chain is finished.
 """
-is_finished(c::InferenceChain) = steps(c) < step(c)
+is_finished(c::InferenceChain) = step(c) >= steps(c)
 
 """
     initialize_chain(::InferenceProcedure, ::Query)::InferenceChain

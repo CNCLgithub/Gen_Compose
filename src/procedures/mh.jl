@@ -2,6 +2,9 @@ export MCMC, MCMCTrace, MetropolisHastings, MHTrace, StaticMHChain
 
 abstract type MCMC <: InferenceProcedure end
 
+"Apply the update function to a chain state"
+function update end
+
 """
 Simple definition of MH procedure
 """
@@ -9,25 +12,27 @@ struct MetropolisHastings <: MCMC
     update::T where T<:Function
 end
 
+update(p::MetropolisHastings, tr::Gen.Trace) = p.update(tr)
+
 """
 Static MH chain
 """
-mutable struct MHChain{Q} <: InferenceChain{Q, MCMC}
+mutable struct MHChain{Q, P<:MCMC} <: InferenceChain{Q, P}
     query::Q
-    proc::MCMC
+    proc::P
     state::Gen.Trace
     auxillary::AuxillaryState
     step::Int
     steps::Int
+end
 
-    function MHChain{Q}(q::Q,
-                        p::MCMC,
-                        n::Int,
-                        i::Int = 1) where {Q<:Query}
-        state = initialize_procedure(p, q)
-        aux = EmptyAuxState()
-        return new(q, p, state, aux, i, n)
-    end
+function MHChain{Q}(q::Q,
+                    p::MCMC,
+                    n::Int,
+                    i::Int = 1) where {Q<:Query}
+    state = initialize_procedure(p, q)
+    aux = EmptyAuxState()
+    return MHChain{Q}(q, p, state, aux, i, n)
 end
 
 estimand(c::MHChain) = c.query
