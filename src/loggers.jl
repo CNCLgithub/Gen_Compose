@@ -17,8 +17,8 @@ function report_step!(logger::NullLogger,
 end
 
 mutable struct MemLogger <: ChainLogger
-    buffer::CircularDeque{ChainDigest}
-    MemLogger(n::Int) = new(CircularDeque{ChainDigest}(n))
+    buffer::CircularBuffer{ChainDigest}
+    MemLogger(n::Int) = new(CircularBuffer{ChainDigest}(n))
 end
 
 buffer(l::MemLogger) = l.buffer
@@ -34,7 +34,7 @@ end
 
 #TODO: handle overwritting
 mutable struct JLD2Logger <: ChainLogger
-    buffer::CircularDeque{ChainDigest}
+    buffer::CircularBuffer{ChainDigest}
     path::String
     save_chain::Bool
     function JLD2Logger(n::Int, p::String;
@@ -47,7 +47,7 @@ mutable struct JLD2Logger <: ChainLogger
                 error("Chain log file exists.")
             end
         end
-        new(CircularDeque{ChainDigest}(n), p, save_chain)
+        new(CircularBuffer{ChainDigest}(n), p, save_chain)
     end
 end
 
