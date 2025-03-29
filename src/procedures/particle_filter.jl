@@ -1,4 +1,4 @@
-export AbstractParticleFitler,
+export AbstractParticleFilter,
     ParticleFilter
 
 abstract type AbstractParticleFilter <: InferenceProcedure end
